@@ -3,17 +3,17 @@
 This document describes the binary protocol for the <TODO> smart home system.
 
 ## Terminology
-| Term | Definition |
-| :---: | :--- |
-| length-prefixed | A encoding scheme where the length of a payload is sent before the payload itself, allowing readers to pre-allocate buffers. |
-| big-endian | A byte encoding where the most significant byte comes first, matches most innuitions, <https://en.wikipedia.org/wiki/Endianness> |
+| Term | Definition                                                                                                                                   |
+| :---: |:---------------------------------------------------------------------------------------------------------------------------------------------|
+| length-prefixed | A encoding scheme where the length of a payload is sent before the payload itself, allowing readers to pre-allocate buffers.                 |
+| big-endian | A byte encoding where the most significant byte comes first, matches most intuitions, <https://en.wikipedia.org/wiki/Endianness>             |
 | json | A common plaintext structured format, thats self describing and supported by a wide range of languages, <https://en.wikipedia.org/wiki/JSON> |
-| tcp | A low level transport-layer protocol that provides reliability and ordering, <https://en.wikipedia.org/wiki/TCP> | 
-| UTF-8 | The most common text encoding that handles all of unicode, and widely supported. <https://en.wikipedia.org/wiki/UTF-8> |
-| Node | A client in the network, either a iot device or a controller. |
-| Server | The central server/brooker |
-| Controller | A controller-node that connects to the central server in order to issue commands and view the status of the network |
-| Device | A Physical iot device, acts as one network client/node, may contain multiple local sensors/acctutors |
+| tcp | A low level transport-layer protocol that provides reliability and ordering, <https://en.wikipedia.org/wiki/TCP>                             | 
+| UTF-8 | The most common text encoding that handles all of unicode, and widely supported. <https://en.wikipedia.org/wiki/UTF-8>                       |
+| Node | A client in the network, either an iot device or a controller.                                                                               |
+| Server | The central server/brooker                                                                                                                   |
+| Controller | A controller-node that connects to the central server in order to issue commands and view the status of the network                          |
+| Device | A Physical iot device, acts as one network client/node, may contain multiple local sensors/acctutors                                         |
 
 
 ## Payloads and connections
@@ -28,13 +28,13 @@ flowchart LR
     Control-Node-1 & Control-Node-2 <-- tcp/8043 --> S
     S <-- tcp/8043 --> Device-1 & Device-2 & Device-3
 
-    Device-1 <-- IPC --> Sensor-1-1 & Sensor-1-2 & Acuttotor-1-1
+    Device-1 <-- IPC --> Sensor-1-1 & Sensor-1-2 & Actuators-1-1
     Device-2 <-- IPC --> Sensor-2-1 & Sensor-2-2
-    Device-3 <-- IPC --> Acuttotor-3-1 & Acuttotor-3-2
+    Device-3 <-- IPC --> Acuttotor-3-1 & Actuators-3-2
 ```
 
 > [!NOTE]
-> communication between devices and its onboard sensors/acuttors are outside the scope of this spec, as long as the device exposes the required addressing capabilities which will be described further on in this document.
+> communication between devices and its onboard sensors/actuators are outside the scope of this specification, as long as the device exposes the required addressing capabilities which will be described later on in this document.
 
 ### Packets
 
@@ -49,20 +49,20 @@ For example the payload `{"value": 20}` would be sent as (in hexadecimal) `00000
 
 ## Payload structure
 
-all payloads have a root level `type` key, which indicates the kind of command/message it is. 
+All payloads have a root level `type` key, which indicates the kind of command/message it is. 
 In addition each message will contain a `request_id`, if the message is a request this will be a new id minted by the client, any responses to that request will have their `request_id` field set to the same value.
 
 > [!WARNING]
 > It is the clients responsibility to ensure request ids are unique for that connection, if requests ids are re-used the server behaviour is undefined. 
 
 ### Addressing 
-Devices get allocated a id upon connection, and enumerate their internal sensor/acutoator addressing. The global sensor/actuoator addresses are then `{device_id}.{sensor_id}`. for example a device with id `3`, with a sensor at id `2` would be addressed as `3.2`.
+Devices get allocated an id upon connection, and enumerate their internal sensor/actuators addressing. The global sensor/actuators addresses are then `{device_id}.{sensor_id}`. for example a device with id `3`, with a sensor at id `2` would be addressed as `3.2`.
 
-The exact allocation and format of ids is up to the server and induvidual devices, the only restriction is that the ids must not contain a `.`.
+The exact allocation and format of ids is up to the server and individual devices, the only restriction is that the ids must not contain a `.`.
 
 ### Device connection flow
 
-On connection the device will send a `connect_device` payload containing user facing metadata such as names, as well as its sensors/actuoators.
+On connection the device will send a `connect_device` payload containing user facing metadata such as names, as well as its sensors/actuators.
 ```json
 {
     "type": "connect_device",

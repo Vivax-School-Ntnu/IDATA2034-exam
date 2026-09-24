@@ -44,6 +44,11 @@ extend-select = [
 ]
 extend-ignore = ["D211", "D213"]
 
+[tool.ruff.per-file-ignores]
+# Dont complain about docs in tests
+"**/tests/**" = ["D"]
+"**/*_test.py" = ["D"]
+
 [tool.pyright]
 typeCheckingMode = "strict"
 strictListInference = true

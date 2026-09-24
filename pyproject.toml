@@ -1,0 +1,28 @@
+[project]
+name = "idata2034-exam"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "shared",
+    "server",
+    "controller",
+    "device",
+]
+
+[tool.uv.sources]
+shared = { workspace = true }
+server = { workspace = true }
+controller = { workspace = true }
+device = { workspace = true }
+
+[tool.uv.workspace]
+members = [
+    "shared",
+    "server",
+    "controller",
+    "device",
+]
+

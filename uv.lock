@@ -1,0 +1,73 @@
+version = 1
+revision = 3
+requires-python = ">=3.13"
+
+[manifest]
+members = [
+    "controller",
+    "device",
+    "idata2034-exam",
+    "server",
+    "shared",
+]
+
+[[package]]
+name = "controller"
+version = "0.1.0"
+source = { editable = "controller" }
+dependencies = [
+    { name = "shared" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "shared", editable = "shared" }]
+
+[[package]]
+name = "device"
+version = "0.1.0"
+source = { editable = "device" }
+dependencies = [
+    { name = "shared" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "shared", editable = "shared" }]
+
+[[package]]
+name = "idata2034-exam"
+version = "0.1.0"
+source = { virtual = "." }
+
+[package.dev-dependencies]
+dev = [
+    { name = "controller" },
+    { name = "device" },
+    { name = "server" },
+    { name = "shared" },
+]
+
+[package.metadata]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "controller", editable = "controller" },
+    { name = "device", editable = "device" },
+    { name = "server", editable = "server" },
+    { name = "shared", editable = "shared" },
+]
+
+[[package]]
+name = "server"
+version = "0.1.0"
+source = { editable = "server" }
+dependencies = [
+    { name = "shared" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "shared", editable = "shared" }]
+
+[[package]]
+name = "shared"
+version = "0.1.0"
+source = { editable = "shared" }

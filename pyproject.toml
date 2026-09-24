@@ -10,6 +10,10 @@ dev = [
     "server",
     "controller",
     "device",
+
+    "pytest",
+    "ruff",
+    "basedpyright"
 ]
 
 [tool.uv.sources]
@@ -26,3 +30,25 @@ members = [
     "device",
 ]
 
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+extend-select = [
+    "ERA",
+    "ASYNC",
+    "A",
+    "ARG",
+    "N",
+    "D"
+]
+extend-ignore = ["D211", "D213"]
+
+[tool.pyright]
+typeCheckingMode = "strict"
+strictListInference = true
+strictDictionaryInference = true
+strictSetInference = true
+analyzeUnannotatedFunctions = true
+deprecateTypingAliases = true
+reportMissingTypeStubs = false

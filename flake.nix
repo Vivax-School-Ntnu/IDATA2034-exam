@@ -16,7 +16,7 @@
       system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
-        python = pkgs.python313;
+        python = pkgs.python314;
       in
       {
         devShells.default = pkgs.mkShell {

@@ -8,7 +8,7 @@ import struct
 from io import Reader, Writer
 from typing import Literal, TypedDict
 
-PORT = 3000
+PORT = 8043
 
 
 def write_frame(target: Writer[bytes], value: object):
@@ -23,13 +23,27 @@ def write_frame(target: Writer[bytes], value: object):
     target.write(raw_json.encode("UTF-8"))
 
 
+def _read_n(reader: Reader[bytes], n: int) -> bytes:
+    """Read exactly `n` bytes from the given reader."""
+    result = b""
+    while len(result) < n:
+        data_read = reader.read(n - len(result))
+        if len(data_read) == 0:
+            raise EOFError(f"Reached EoF, but expected to read {n - len(result)} more bytes.")
+
+        result += data_read
+
+    assert len(result) == n, "Read more than `n` bytes from reader"
+    return result
+
+
 def read_frame(reader: Reader[bytes]) -> object:
     """Read a packet from the given reader.
 
     returns a json compatible object.
     """
-    length: int = struct.unpack(">Q", reader.read(8))[0]
-    raw_json = reader.read(length).decode("UTF-8")
+    length: int = struct.unpack(">Q", _read_n(reader, 8))[0]
+    raw_json = _read_n(reader, length).decode("UTF-8")
 
     return json.loads(raw_json)
 

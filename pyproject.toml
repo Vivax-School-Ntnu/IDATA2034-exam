@@ -16,6 +16,9 @@ dev = [
     "hypothesis>=6.168.5",
 ]
 
+[tool.uv]
+required-version = ">=0.13.4"
+
 [tool.uv.sources]
 shared = { workspace = true }
 server = { workspace = true }

@@ -3,12 +3,15 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    # uv >= 0.13.4 has not reached nixos-unstable yet
+    nixpkgs-master.url = "github:NixOS/nixpkgs/master";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
   outputs =
     {
       nixpkgs,
+      nixpkgs-master,
       flake-utils,
       ...
     }:
@@ -22,7 +25,7 @@
         devShells.default = pkgs.mkShell {
           packages = [
             python
-            pkgs.uv
+            nixpkgs-master.legacyPackages.${system}.uv
             pkgs.ruff
             pkgs.basedpyright
           ];

@@ -1,6 +1,8 @@
-import pytest
-from device.sensor import Sensor, NumericSensor, BinarySensor
 from unittest.mock import patch
+
+import pytest
+from device.sensor import BinarySensor, NumericSensor, Sensor
+
 
 def test_sensor_is_abstract():
     """Test that Sensor cannot be instantiated directly."""

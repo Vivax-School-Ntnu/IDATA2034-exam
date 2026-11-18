@@ -23,3 +23,8 @@ And some lints can be automatically fixed with
 ```bash
 uv run ruff check --fix
 ```
+
+Type checking is done with [basedpyright](https://docs.basedpyright.com/) in strict mode:
+```bash
+uv run basedpyright
+```

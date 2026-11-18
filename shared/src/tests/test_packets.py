@@ -4,6 +4,7 @@ from collections.abc import Buffer
 import hypothesis
 import pytest
 from hypothesis import strategies as st
+from pydantic import ValidationError
 
 import shared
 
@@ -69,9 +70,10 @@ def test_eof():
         shared.read_frame(buffer)
 
 
-def test_non_json_packet() -> None:
-    pass
-
-
-def test_invalid_json_packet() -> None:
-    pass
+@pytest.mark.parametrize(
+    "payload", [b"{not json", b"\xff\xfe", b"[1, 2, 3]", b'{"request_id": "r1"}']
+)
+def test_invalid_packet(payload: bytes) -> None:
+    buffer = io.BytesIO(len(payload).to_bytes(8, "big") + payload)
+    with pytest.raises(ValidationError):
+        shared.read_frame(buffer)

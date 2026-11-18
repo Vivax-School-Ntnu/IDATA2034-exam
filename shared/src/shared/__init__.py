@@ -16,10 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 def write_frame(target: Writer[bytes], value: "BasePacket"):
-    """Write the given value to the stream using the packet format.
-
-    value should be a type suitable for `json.dump`
-    """
+    """Write the given packet to the stream using the packet format."""
     logger.debug(f"Writing {value!r} to socket.")
     raw_json = value.model_dump_json().encode("UTF-8")
     length = struct.pack(">Q", len(raw_json))
@@ -43,12 +40,13 @@ def _read_n(reader: Reader[bytes], n: int) -> bytes:
 
 
 def read_frame(reader: Reader[bytes]) -> "BasePacket":
-    """Read a packet from the given reader.
+    """Read one frame from the reader and parse it as a `BasePacket`.
 
-    returns a json compatible object.
+    Raises `EOFError` if the stream ends mid-frame, and `ValidationError` if the frame is not
+    a valid packet.
     """
     length: int = struct.unpack(">Q", _read_n(reader, 8))[0]
-    raw_json = _read_n(reader, length).decode("UTF-8")
+    raw_json = _read_n(reader, length)
 
     packet = BasePacket.model_validate_json(raw_json)
     logger.debug(f"Read {packet!r} from socket.")

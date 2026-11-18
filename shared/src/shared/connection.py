@@ -1,4 +1,4 @@
-"""Map incoming packet types to the functions that handle them."""
+"""A packet connection that any node can use to send packets and dispatch received ones."""
 
 import contextlib
 import logging
@@ -26,7 +26,11 @@ class Connection(threading.Thread):
         pydantic_converter: TypeAdapter[T],
         disconnect_handler: Callable[[], None],
     ) -> None:
-        """Create the handler and register all packet types."""
+        """Wrap `socket` in a connection.
+
+        `pydantic_converter` decides which packet types are accepted. `disconnect_handler` is
+        called once the read loop ends.
+        """
         self._pydantic_converter = pydantic_converter
         self.socket = socket
         self._writer = self.socket.makefile("wb")
@@ -34,8 +38,8 @@ class Connection(threading.Thread):
         self._write_lock = threading.Lock()
         self._disconnect_handler = disconnect_handler
 
-        # the typer checker (correctly) will complain that in theory some code might call the wrong handler with the wrong arugment type.
-        # we are effectivelly doing a "any-map" here
+        # The type checker (correctly) complains that in theory some code might call a handler
+        # with the wrong argument type. This is effectively an "any-map", hence `Any`.
         self._commands: dict[type[BasePacket], HandlerFunction[Any]] = {}
 
         super().__init__(daemon=True, name="Connection")
@@ -55,7 +59,7 @@ class Connection(threading.Thread):
     def send_error(self, msg: str, request_id: str | None) -> None:
         """Send (and log) the given error message to this client.
 
-        If the error is a issue with a known request also send `request_id` matching that request.
+        Pass the `request_id` of the request that caused the error, if known.
         """
         logger.exception(msg)
         error = ErrorPacket(request_id=request_id, msg=msg)
@@ -64,7 +68,7 @@ class Connection(threading.Thread):
     def register[T: BasePacket](self, packet_type: type[T], func: HandlerFunction[T]) -> None:
         """Register `func` to handle packets whose type is `packet_type`.
 
-        Handlers will be ran in a dedicated thread, as such ensure the handlers are thread safe.
+        Each packet is handled on its own thread, so handlers must be thread safe.
         """
         self._commands[packet_type] = func
 

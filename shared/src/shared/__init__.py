@@ -3,24 +3,29 @@
 As well as sharing shared types and constants.
 """
 
-import json
+import logging
 import struct
 from io import Reader, Writer
-from typing import Literal, TypedDict
+from typing import Literal
+
+from pydantic import BaseModel
 
 PORT = 8043
 
+logger = logging.getLogger(__name__)
 
-def write_frame(target: Writer[bytes], value: object):
+
+def write_frame(target: Writer[bytes], value: "BasePacket"):
     """Write the given value to the stream using the packet format.
 
     value should be a type suitable for `json.dump`
     """
-    raw_json = json.dumps(value)
+    logger.debug(f"Writing {value!r} to socket.")
+    raw_json = value.model_dump_json().encode("UTF-8")
     length = struct.pack(">Q", len(raw_json))
 
     target.write(length)
-    target.write(raw_json.encode("UTF-8"))
+    target.write(raw_json)
 
 
 def _read_n(reader: Reader[bytes], n: int) -> bytes:
@@ -37,7 +42,7 @@ def _read_n(reader: Reader[bytes], n: int) -> bytes:
     return result
 
 
-def read_frame(reader: Reader[bytes]) -> object:
+def read_frame(reader: Reader[bytes]) -> "BasePacket":
     """Read a packet from the given reader.
 
     returns a json compatible object.
@@ -45,27 +50,47 @@ def read_frame(reader: Reader[bytes]) -> object:
     length: int = struct.unpack(">Q", _read_n(reader, 8))[0]
     raw_json = _read_n(reader, length).decode("UTF-8")
 
-    return json.loads(raw_json)
+    packet = BasePacket.model_validate_json(raw_json)
+    logger.debug(f"Read {packet!r} from socket.")
+    return packet
 
 
-class ErrorPacket(TypedDict):
+class BasePacket(BaseModel, frozen=True, extra="allow"):
+    """The base packet all packets build from.
+
+    * `type`: indicates the subtype to parse the packet into
+    * `request_id`: a request_id for error handling and other needs of associating reponses.
+    """
+
+    type: str
+    request_id: str | None
+
+
+class ErrorPacket(BasePacket, frozen=True):
     """An erorr occured.
 
     Contains a message, and a optional `request_id` field if the error can be asscoaited with one.
     """
 
-    type: Literal["error"]
-    request_id: str | None
+    type: Literal["error"] = "error"
     msg: str
 
+
+class DisconnectPacket(BasePacket, frozen=True):
+    """Disconnection request from a node to the server holding its connection."""
+
+    type: Literal["disconnect"]
+
+
+GenericPacket = ErrorPacket | DisconnectPacket
 
 type SensorType = Literal["numeric", "binary"]
 type SensorValue = int | bool
 
 
-class SensorConfiguration(TypedDict):
+class SensorConfiguration(BaseModel):
     """A description of a sensor."""
 
-    type: Literal["sensor"]
+    type: Literal["sensor"] = "sensor"
     name: str
     sensor_type: SensorType

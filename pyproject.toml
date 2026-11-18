@@ -2,7 +2,6 @@
 name = "idata2034-exam"
 version = "0.1.0"
 requires-python = ">=3.13"
-dependencies = []
 
 [dependency-groups]
 dev = [
@@ -14,6 +13,7 @@ dev = [
     "ruff",
     "basedpyright",
     "hypothesis>=6.168.5",
+    "pytest-xdist>=3.8.0",
 ]
 
 [tool.uv]
@@ -32,6 +32,9 @@ members = [
     "controller",
     "device",
 ]
+
+[tool.pytest.ini_options]
+addopts = "--log-level=DEBUG -n auto"
 
 [tool.ruff]
 line-length = 100
@@ -60,3 +63,4 @@ strictSetInference = true
 analyzeUnannotatedFunctions = true
 deprecateTypingAliases = true
 reportMissingTypeStubs = false
+enableExperimentalFeatures = true # required for pydantic type checking to work properly

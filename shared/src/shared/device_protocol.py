@@ -1,28 +1,27 @@
 """The protocol types for the server <-> device protocol."""
 
-from typing import Literal, TypedDict
+from typing import Annotated, Literal
 
-from shared import SensorConfiguration, SensorValue
+from pydantic import Field
+
+from shared import BasePacket, GenericPacket, SensorConfiguration, SensorValue
 
 
-class DeviceConnection(TypedDict):
+class DeviceConnection(BasePacket, frozen=True):
     """Connection request from a device to the server containing its configuration."""
 
     type: Literal["connect_device"]
-    request_id: str
     name: str
     capabilities: dict[str, SensorConfiguration]
 
 
-class SensorUpdate(TypedDict):
+class SensorUpdate(BasePacket, frozen=True):
     """A update to the values of the sensors on a device."""
 
     type: Literal["sensor_update"]
     sensors: dict[str, SensorValue]
 
 
-class DeviceDisconnect(TypedDict):
-    """Disconnection request from a device to the server holding its connection."""
-
-    type: Literal["disconnect_device"]
-    request_id: str
+DeviceToServerPacket = Annotated[
+    GenericPacket | DeviceConnection | SensorUpdate, Field(discriminator="type")
+]

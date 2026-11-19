@@ -64,7 +64,9 @@ def test_get_capabilities(device: Device):
     device.add_sensor("temp1", NumericSensor("temperature"))
     device.add_sensor("motion1", BinarySensor("motion"))
 
-    capabilities = device.get_capabilities()
+    capabilities = {
+        sensor_id: config.model_dump() for sensor_id, config in device.get_capabilities().items()
+    }
 
     assert capabilities == {
         "temp1": {"type": "sensor", "name": "temperature", "sensor_type": "numeric"},

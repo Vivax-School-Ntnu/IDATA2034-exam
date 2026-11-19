@@ -6,9 +6,12 @@ As well as sharing shared types and constants.
 import logging
 import struct
 from io import Reader, Writer
-from typing import Literal
+from typing import Annotated
 
-from pydantic import BaseModel
+from pydantic import Field
+
+from shared.base_packet import BasePacket, GenericPacket
+from shared.device_protocol import DeviceToServerPacket
 
 PORT = 8043
 
@@ -53,42 +56,4 @@ def read_frame(reader: Reader[bytes]) -> "BasePacket":
     return packet
 
 
-class BasePacket(BaseModel, frozen=True, extra="allow"):
-    """The base packet all packets build from.
-
-    * `type`: indicates the subtype to parse the packet into
-    * `request_id`: a request_id for error handling and other needs of associating reponses.
-    """
-
-    type: str
-    request_id: str | None
-
-
-class ErrorPacket(BasePacket, frozen=True):
-    """An erorr occured.
-
-    Contains a message, and a optional `request_id` field if the error can be asscoaited with one.
-    """
-
-    type: Literal["error"] = "error"
-    msg: str
-
-
-class DisconnectPacket(BasePacket, frozen=True):
-    """Disconnection request from a node to the server holding its connection."""
-
-    type: Literal["disconnect"]
-
-
-GenericPacket = ErrorPacket | DisconnectPacket
-
-type SensorType = Literal["numeric", "binary"]
-type SensorValue = int | bool
-
-
-class SensorConfiguration(BaseModel):
-    """A description of a sensor."""
-
-    type: Literal["sensor"] = "sensor"
-    name: str
-    sensor_type: SensorType
+ToServerPacket = Annotated[GenericPacket | DeviceToServerPacket, Field(discriminator="type")]

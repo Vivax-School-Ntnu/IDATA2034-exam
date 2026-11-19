@@ -5,10 +5,10 @@ import socket
 import threading
 
 from pydantic import TypeAdapter
+from shared.base_packet import ErrorPacket
 from shared.connection import Connection
-from shared.device_protocol import DeviceToServerPacket
 
-from shared import PORT, ErrorPacket
+from shared import PORT, ToServerPacket
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +62,7 @@ class Server:
             logger.info(f"Got client with id {client_id} from {address}")
 
             connection = Connection(
-                conn, TypeAdapter(DeviceToServerPacket), lambda: self._remove_client(client_id)
+                conn, TypeAdapter(ToServerPacket), lambda: self._remove_client(client_id)
             )
             connection.register(ErrorPacket, lambda packet: self._handle_error(client_id, packet))
 

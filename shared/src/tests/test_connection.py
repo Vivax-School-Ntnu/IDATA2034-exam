@@ -6,9 +6,8 @@ from typing import Annotated, Literal
 
 import pytest
 from pydantic import Field, TypeAdapter
+from shared.base_packet import BasePacket, ErrorPacket, GenericPacket
 from shared.connection import Connection
-
-from shared import BasePacket, ErrorPacket, GenericPacket
 
 
 class EchoPacket(BasePacket, frozen=True):

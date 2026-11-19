@@ -19,3 +19,10 @@ class SensorUpdate(TypedDict):
 
     type: Literal["sensor_update"]
     sensors: dict[str, SensorValue]
+
+
+class DeviceDisconnect(TypedDict):
+    """Disconnection request from a device to the server holding its connection."""
+
+    type: Literal["disconnect_device"]
+    request_id: str

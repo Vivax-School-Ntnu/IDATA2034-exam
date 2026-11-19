@@ -17,7 +17,6 @@ type ClientId = int
 type DeviceId = int
 type UUID = str
 
-
 class Server:
     """Central server that devices and controllers connect to."""
 
@@ -30,13 +29,13 @@ class Server:
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._clients: dict[int, Connection] = {}
         self._uuid_ids: dict[UUID, DeviceId] = {}
-        self._device_ids: dict[ClientId, DeviceId] = {}
+        self._device_ids: dict[ClientId,DeviceId] = {}
         self._clients_lock = threading.Lock()
         self._next_id: int = 1
         self._next_device_id = 1
         self.accept_timeout = accept_timeout
         self.running = False
-
+        
     def _bind(self, host: str) -> None:
         """Bind and listen on the given host.
 
@@ -72,9 +71,7 @@ class Server:
             connection = Connection(
                 conn, TypeAdapter(ToServerPacket), lambda: self._remove_client(client_id)
             )
-            connection.register(
-                DeviceConnection, lambda packet: self._handle_device_connection(client_id, packet)
-            )
+            connection.register(DeviceConnection, lambda packet: self._handle_device_connection(client_id, packet))
             connection.register(ErrorPacket, lambda packet: self._handle_error(client_id, packet))
 
             self._clients[client_id] = connection
@@ -109,20 +106,21 @@ class Server:
         with self._clients_lock:
             if packet.uuid in self._uuid_ids:
                 self._device_ids[client_id] = self._uuid_ids[packet.uuid]
-                logger.info(
-                    f"Device reconnected. Client id: {client_id}, Device id: {self._device_ids[client_id]}"
-                )
+                logger.info(f"Device reconnected. Client id: {client_id}, Device id: {self._device_ids[client_id]}")
             else:
                 self._uuid_ids[packet.uuid] = self._next_device_id
                 self._device_ids[client_id] = self._next_device_id
-                logger.info(
-                    f"New device. Client id: {client_id}. Device id: {self._next_device_id}"
-                )
+                logger.info(f"New device. Client id: {client_id}. Device id: {self._next_device_id}")   
                 self._next_device_id += 1
 
     def client_count(self) -> int:
         """Return the amount of currently connected clients."""
         return len(self._clients)
+    
+    def device_id_for(self, uuid: UUID) -> DeviceId | None:
+        """Return the device id assigned to `uuid`, or `None` if that device has never connected."""
+        with self._clients_lock:
+            return self._uuid_ids.get(uuid)
 
     def close(self) -> None:
         """Stop accepting clients and close the listening socket."""

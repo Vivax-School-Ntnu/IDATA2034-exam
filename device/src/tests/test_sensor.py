@@ -5,7 +5,7 @@ from device.sensor import BinarySensor, NumericSensor, Sensor
 def test_sensor_is_abstract():
     """Test that Sensor cannot be instantiated directly."""
     with pytest.raises(TypeError):
-        Sensor("temperature", "numeric") # pyright: ignore[reportAbstractUsage]
+        Sensor("temperature", "numeric")  # pyright: ignore[reportAbstractUsage]
 
 
 def test_numeric_sensor_name():

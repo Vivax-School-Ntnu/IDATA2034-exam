@@ -6,9 +6,8 @@ from collections.abc import Iterator
 import pytest
 from pydantic import TypeAdapter
 from server.core import Server
+from shared.base_packet import BasePacket
 from shared.connection import Connection
-
-from shared import BasePacket
 
 
 @pytest.fixture

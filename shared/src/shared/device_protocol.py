@@ -1,10 +1,8 @@
 """The protocol types for the server <-> device protocol."""
 
-from typing import Annotated, Literal
+from typing import Literal
 
-from pydantic import Field
-
-from shared import BasePacket, GenericPacket, SensorConfiguration, SensorValue
+from shared.base_packet import BasePacket, SensorConfiguration, SensorValue
 
 
 class DeviceConnection(BasePacket, frozen=True):
@@ -22,6 +20,4 @@ class SensorUpdate(BasePacket, frozen=True):
     sensors: dict[str, SensorValue]
 
 
-DeviceToServerPacket = Annotated[
-    GenericPacket | DeviceConnection | SensorUpdate, Field(discriminator="type")
-]
+DeviceToServerPacket = DeviceConnection | SensorUpdate

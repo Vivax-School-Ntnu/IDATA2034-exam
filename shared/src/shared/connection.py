@@ -10,7 +10,8 @@ from typing import Any
 from pydantic import TypeAdapter
 from pydantic_core import ValidationError
 
-from shared import BasePacket, ErrorPacket, read_frame, write_frame
+from shared import read_frame, write_frame
+from shared.base_packet import BasePacket, ErrorPacket
 
 logger = logging.getLogger(__name__)
 

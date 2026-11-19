@@ -1,7 +1,8 @@
 """Manage sensors belonging to a simulated device."""
 
+from shared.base_packet import SensorConfiguration, SensorValue
+
 from device.sensor import Sensor
-from shared import SensorConfiguration, SensorValue
 
 
 class Device:

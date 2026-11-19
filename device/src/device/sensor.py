@@ -13,7 +13,7 @@ class Sensor(ABC):
     def __init__(self, name: str, sensor_type: SensorType):
         """Initialize the sensor with its name and type."""
         self.name = name
-        self.sensor_type = sensor_type
+        self.sensor_type: SensorType = sensor_type
 
     @abstractmethod
     def get_value(self) -> SensorValue:

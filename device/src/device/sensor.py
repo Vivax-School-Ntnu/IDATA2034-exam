@@ -4,7 +4,7 @@ import random
 from abc import ABC, abstractmethod
 from typing import override
 
-from shared import SensorType, SensorValue
+from shared.base_packet import SensorType, SensorValue
 
 
 class Sensor(ABC):

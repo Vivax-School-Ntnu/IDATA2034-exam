@@ -7,10 +7,15 @@ import threading
 from pydantic import TypeAdapter
 from shared.base_packet import ErrorPacket
 from shared.connection import Connection
+from shared.device_protocol import DeviceConnection
 
 from shared import PORT, ToServerPacket
 
 logger = logging.getLogger(__name__)
+
+type ClientId = int
+type DeviceId = int
+type UUID = str
 
 
 class Server:
@@ -24,8 +29,11 @@ class Server:
         self.port = port
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._clients: dict[int, Connection] = {}
+        self._uuid_ids: dict[UUID, DeviceId] = {}
+        self._device_ids: dict[ClientId, DeviceId] = {}
         self._clients_lock = threading.Lock()
         self._next_id: int = 1
+        self._next_device_id = 1
         self.accept_timeout = accept_timeout
         self.running = False
 
@@ -64,6 +72,9 @@ class Server:
             connection = Connection(
                 conn, TypeAdapter(ToServerPacket), lambda: self._remove_client(client_id)
             )
+            connection.register(
+                DeviceConnection, lambda packet: self._handle_device_connection(client_id, packet)
+            )
             connection.register(ErrorPacket, lambda packet: self._handle_error(client_id, packet))
 
             self._clients[client_id] = connection
@@ -73,6 +84,7 @@ class Server:
         """Remove a client from the registry."""
         with self._clients_lock:
             del self._clients[client_id]
+            self._device_ids.pop(client_id, None)
         print(f"Client {client_id} removed")
 
     def _accept_client(self) -> None:
@@ -91,6 +103,22 @@ class Server:
 
     def _handle_error(self, client_id: int, packet: ErrorPacket) -> None:
         logger.error(f"Error from {client_id}, request {packet.request_id}: {packet.msg}")
+
+    def _handle_device_connection(self, client_id: int, packet: DeviceConnection) -> None:
+        """Handle the device connection packet."""
+        with self._clients_lock:
+            if packet.uuid in self._uuid_ids:
+                self._device_ids[client_id] = self._uuid_ids[packet.uuid]
+                logger.info(
+                    f"Device reconnected. Client id: {client_id}, Device id: {self._device_ids[client_id]}"
+                )
+            else:
+                self._uuid_ids[packet.uuid] = self._next_device_id
+                self._device_ids[client_id] = self._next_device_id
+                logger.info(
+                    f"New device. Client id: {client_id}. Device id: {self._next_device_id}"
+                )
+                self._next_device_id += 1
 
     def client_count(self) -> int:
         """Return the amount of currently connected clients."""

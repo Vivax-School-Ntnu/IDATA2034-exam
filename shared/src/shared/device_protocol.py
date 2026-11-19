@@ -6,11 +6,12 @@ from shared.base_packet import BasePacket, SensorConfiguration, SensorValue
 
 
 class DeviceConnection(BasePacket, frozen=True):
-    """Connection request from a device to the server containing its configuration."""
+    """Connection request from a device to the server containing its configuration. Must contain a semi random uuid."""
 
     type: Literal["connect_device"]
     name: str
     capabilities: dict[str, SensorConfiguration]
+    uuid: str
 
 
 class SensorUpdate(BasePacket, frozen=True):

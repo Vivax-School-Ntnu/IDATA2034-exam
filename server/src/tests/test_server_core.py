@@ -1,13 +1,24 @@
 import socket
 import threading
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 
 import pytest
 from pydantic import TypeAdapter
 from server.core import Server
 from shared.base_packet import BasePacket
 from shared.connection import Connection
+
+
+def wait_for(condition: Callable[[], bool], timeout: float = 3.0) -> bool:
+    """Poll `condition` until it is true or `timeout` seconds have passed.
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if condition():
+            return True
+        time.sleep(0.01)
+    return condition()
 
 
 @pytest.fixture
@@ -38,13 +49,12 @@ def client(server: Server) -> Iterator[Connection]:
 
 @pytest.mark.usefixtures("client")
 def test_client_connects(server: Server) -> None:
-    assert server.client_count() == 1
+    assert wait_for(lambda: server.client_count() == 1)
 
 
 def test_disconnect_removes_client(server: Server, client: Connection) -> None:
     client.close()
-    time.sleep(1)
-    assert server.client_count() == 0
+    assert wait_for(lambda: server.client_count() == 0)
 
 
 def test_close_stops_serve_loop() -> None:

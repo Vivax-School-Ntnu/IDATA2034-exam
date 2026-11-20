@@ -1,0 +1,35 @@
+#devices {
+    padding: 0 5;
+}
+
+.device {
+    background: $surface;
+    margin: 1 0;
+    padding: 1;
+}
+
+.device_name {
+    width: 100%;
+    text-align: center; 
+    text-style: bold;
+    color: $text-primary;
+}
+
+.sensor {
+    width: 100%;
+}
+
+.sensor_name {
+    color: $text-secondary;
+}
+
+.sensor_numeric_value {
+    color: $text-accent;
+    text-align: center;
+    width: 5;
+}
+
+.sensor_binary_value {
+    color: $text-secondary;
+    border: none;
+}

@@ -28,3 +28,9 @@ Type checking is done with [basedpyright](https://docs.basedpyright.com/) in str
 ```bash
 uv run basedpyright
 ```
+
+# Debbuging TUI / Live-reloading
+For getting live style reloads for the textual app you can use
+```bash
+uv run textual run -c "uv run controller" --dev
+```

@@ -9,7 +9,8 @@ from controller.tui import SmartHomeApp
 logger = logging.getLogger(__name__)
 
 
-def create_mock_backend() -> Backend:
+def _create_mock_backend() -> Backend:
+    """Create a mock/fake backend for testing the tui."""
     return MockBackend(
         [
             MockDevice(
@@ -35,4 +36,5 @@ def main() -> None:
     """Start the controller."""
     logging.basicConfig(filename="controller.log", level=logging.DEBUG)
     logger.info("Starting app")
-    SmartHomeApp(create_mock_backend()).run()
+
+    SmartHomeApp(_create_mock_backend()).run()

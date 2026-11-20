@@ -1,8 +1,7 @@
 """Abstraction to allow swapping the real server with a fake one for the controller."""
 
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
-from typing import Callable
+from collections.abc import Callable, Sequence
 
 from shared.base_packet import SensorType, SensorValue
 
@@ -15,11 +14,11 @@ class Sensor(ABC):
 
     @abstractmethod
     def get_value(self) -> SensorValue:
-        """"""
+        """Get the latest value of the sensor."""
 
     @abstractmethod
     def register_on_update(self, callback: Callable[[], None]) -> None:
-        """"""
+        """Register a callback to be called when the sensor value changes."""
 
 
 class Device(ABC):
@@ -29,7 +28,7 @@ class Device(ABC):
 
     @abstractmethod
     def get_sensors(self) -> Sequence[Sensor]:
-        """"""
+        """Get a sequence of sensors on this device."""
 
 
 class Backend(ABC):
@@ -37,12 +36,15 @@ class Backend(ABC):
 
     @abstractmethod
     def start(self) -> None:
-        """"""
+        """Start this backend.
+
+        Should be spawned in a background thread.
+        """
 
     @abstractmethod
     def register_on_new_device(self, callback: Callable[[Device], None]) -> None:
-        """"""
+        """Register callback for when a device is added."""
 
     @abstractmethod
     def register_on_error(self, callback: Callable[[str], None]) -> None:
-        pass
+        """Register callback for when a error occurs in the backend."""

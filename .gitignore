@@ -218,3 +218,7 @@ __marimo__/
 
 # direnv
 .direnv/
+
+#Runtime data
+device_ids.json
+device_ids.tmp

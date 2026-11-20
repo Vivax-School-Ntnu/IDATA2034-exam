@@ -94,7 +94,7 @@ Devices get allocated an id upon connection, and enumerate their internal sensor
 
 The exact allocation and format of ids is up to the server and individual devices, the only restriction is that the ids must not contain a `.`.
 
-Device ids are allocated by the server based on the `uuid` each device sends in its `connect_device` payload (see [Device connection flow](#device-connection-flow)). A device reconnecting with the same `uuid` gets the same device id back, so its global sensor addresses stay stable across reconnects. The mapping is kept in memory, so it resets when the server restarts.
+Device ids are allocated by the server based on the `uuid` each device sends in its `connect_device` payload (see [Device connection flow](#device-connection-flow)). A device reconnecting with the same `uuid` gets the same device id back, so its global sensor addresses stay stable across reconnects. The server persists the mapping to a file (device_ids.json), so device ids survive a server restart. This is so that automation rules and controllers reffering to specific device ids would work properly after a restart.
 
 ### Error handling
 

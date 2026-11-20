@@ -3,6 +3,7 @@
 import logging
 import socket
 import threading
+from pathlib import Path
 
 from pydantic import TypeAdapter
 from shared.base_packet import ErrorPacket
@@ -20,25 +21,36 @@ type DeviceId = int
 type HardwareId = str
 """Identity a device generates once and keeps forever. Works like a MAC address."""
 
+_ID_MAP_ADAPTER = TypeAdapter(dict[HardwareId, DeviceId])
+
+
 class Server:
     """Central server that devices and controllers connect to."""
 
-    def __init__(self, port: int = PORT, accept_timeout: float = 1.0) -> None:
+    def __init__(
+        self, port: int = PORT, accept_timeout: float = 1.0, id_file: Path | None = None
+    ) -> None:
         """Create the server.
 
         `accept_timeout` is how often the accept loop wakes up to check whether it should stop.
+
+        `id_file` is where hardware_ids is persisted. None disables persistence.
         """
         self.port = port
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._id_file = id_file
+        self._hardware_ids: dict[HardwareId, DeviceId] = {}
+        if self._id_file is not None and self._id_file.exists():
+            self._hardware_ids = _ID_MAP_ADAPTER.validate_json(self._id_file.read_bytes())
+
         self._clients: dict[int, Connection] = {}
-        self._uuid_ids: dict[HardwareId, DeviceId] = {}
-        self._device_ids: dict[ConnectionId,DeviceId] = {}
+        self._device_ids: dict[ConnectionId, DeviceId] = {}
         self._clients_lock = threading.Lock()
         self._next_id: int = 1
-        self._next_device_id = 1
+        self._next_device_id: int = max(self._hardware_ids.values(), default=0) + 1
         self.accept_timeout = accept_timeout
         self.running = False
-        
+
     def _bind(self, host: str) -> None:
         """Bind and listen on the given host.
 
@@ -74,7 +86,9 @@ class Server:
             connection = Connection(
                 conn, TypeAdapter(ToServerPacket), lambda: self._remove_client(client_id)
             )
-            connection.register(DeviceConnection, lambda packet: self._handle_device_connection(client_id, packet))
+            connection.register(
+                DeviceConnection, lambda packet: self._handle_device_connection(client_id, packet)
+            )
             connection.register(ErrorPacket, lambda packet: self._handle_error(client_id, packet))
 
             self._clients[client_id] = connection
@@ -107,23 +121,40 @@ class Server:
     def _handle_device_connection(self, client_id: int, packet: DeviceConnection) -> None:
         """Handle the device connection packet."""
         with self._clients_lock:
-            if packet.uuid in self._uuid_ids:
-                self._device_ids[client_id] = self._uuid_ids[packet.uuid]
-                logger.info(f"Device reconnected. Client id: {client_id}, Device id: {self._device_ids[client_id]}")
+            if packet.uuid in self._hardware_ids:
+                self._device_ids[client_id] = self._hardware_ids[packet.uuid]
+                logger.info(
+                    f"Device reconnected. Client id: {client_id}, Device id: {self._device_ids[client_id]}"
+                )
             else:
-                self._uuid_ids[packet.uuid] = self._next_device_id
+                self._hardware_ids[packet.uuid] = self._next_device_id
                 self._device_ids[client_id] = self._next_device_id
-                logger.info(f"New device. Client id: {client_id}. Device id: {self._next_device_id}")   
+                logger.info(
+                    f"New device. Client id: {client_id}. Device id: {self._next_device_id}"
+                )
                 self._next_device_id += 1
+                self._save_hardware_ids()
 
+    def _save_hardware_ids(self) -> None:
+        """Save hardware IDs to a persistent file. Does nothing if persistence is not enabled.
+        
+        Caller must call under _clients_lock.
+        """
+        if self._id_file is None:
+            return
+        data = _ID_MAP_ADAPTER.dump_json(self._hardware_ids)
+        tmp = self._id_file.with_suffix(".tmp")
+        tmp.write_bytes(data)
+        tmp.replace(self._id_file)
+    
     def client_count(self) -> int:
         """Return the amount of currently connected clients."""
         return len(self._clients)
-    
+
     def device_id_for(self, uuid: HardwareId) -> DeviceId | None:
         """Return the device id assigned to `uuid`, or `None` if that device has never connected."""
         with self._clients_lock:
-            return self._uuid_ids.get(uuid)
+            return self._hardware_ids.get(uuid)
 
     def close(self) -> None:
         """Stop accepting clients and close the listening socket."""

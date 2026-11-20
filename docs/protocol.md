@@ -94,6 +94,8 @@ Devices get allocated an id upon connection, and enumerate their internal sensor
 
 The exact allocation and format of ids is up to the server and individual devices, the only restriction is that the ids must not contain a `.`.
 
+Device ids are allocated by the server based on the `uuid` each device sends in its `connect_device` payload (see [Device connection flow](#device-connection-flow)). A device reconnecting with the same `uuid` gets the same device id back, so its global sensor addresses stay stable across reconnects. The mapping is kept in memory, so it resets when the server restarts.
+
 ### Error handling
 
 In the event of a processing error the server will respond with a `error` payload, containing a `msg` field, and a *optional* `request_id` field (if the server fails to read the json completely it will not include the request id).
@@ -127,11 +129,14 @@ A sensor is a abstract source of values attached to a specific device, devices a
 
 ### Device connection flow
 
-On connection the device will send a `connect_device` payload containing user facing metadata such as names, as well as its sensors/actuators.
+On connection the device will send a `connect_device` payload containing a persistent `uuid`, user facing metadata such as names, as well as its sensors/actuators.
+
+The `uuid` identifies the physical device. A device must generate it once (for example with `uuid4()`) and reuse the same value every time it connects, typically by storing it. Generating a new `uuid` on every start makes the server treat the device as a new device each time.
 ```jsonc
 {
     "type": "connect_device",
     "request_id": "...",
+    "uuid": "3f2a8c1e-9b4d-4e7a-a1c2-7d9e0f5b6a3c",
     "name": "IKEA ...",
     // A mapping from local addresses to sensor definitions (as defined above)
     "capabilities": {

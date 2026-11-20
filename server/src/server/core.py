@@ -13,9 +13,12 @@ from shared import PORT, ToServerPacket
 
 logger = logging.getLogger(__name__)
 
-type ClientId = int
+type ConnectionId = int
+"""Identifies every instance of a connection, new every time, gone on a disconnect."""
 type DeviceId = int
-type UUID = str
+"""Handed out by the server, tied to the devices specific HardwareId. Short, used for addressing."""
+type HardwareId = str
+"""Identity a device generates once and keeps forever. Works like a MAC address."""
 
 class Server:
     """Central server that devices and controllers connect to."""
@@ -28,8 +31,8 @@ class Server:
         self.port = port
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._clients: dict[int, Connection] = {}
-        self._uuid_ids: dict[UUID, DeviceId] = {}
-        self._device_ids: dict[ClientId,DeviceId] = {}
+        self._uuid_ids: dict[HardwareId, DeviceId] = {}
+        self._device_ids: dict[ConnectionId,DeviceId] = {}
         self._clients_lock = threading.Lock()
         self._next_id: int = 1
         self._next_device_id = 1
@@ -117,7 +120,7 @@ class Server:
         """Return the amount of currently connected clients."""
         return len(self._clients)
     
-    def device_id_for(self, uuid: UUID) -> DeviceId | None:
+    def device_id_for(self, uuid: HardwareId) -> DeviceId | None:
         """Return the device id assigned to `uuid`, or `None` if that device has never connected."""
         with self._clients_lock:
             return self._uuid_ids.get(uuid)

@@ -17,13 +17,22 @@ class MockSensor(Sensor):
         self.name = name
         self.type_ = type_
         self._value = value
+        self._on_update: Callable[[], None] = lambda: None
 
     def get_value(self) -> SensorValue:
         logger.debug("Getting sensor value")
         return self._value
 
     def register_on_update(self, callback: Callable[[], None]) -> None:
-        pass
+        self._on_update = callback
+
+    def update(self) -> None:
+        match self.type_:
+            case "numeric":
+                self._value += 1
+            case "binary":
+                self._value = not self._value
+        self._on_update()
 
 
 class MockDevice(Device):
@@ -31,10 +40,10 @@ class MockDevice(Device):
 
     def __init__(self, name: str, sensors: list[MockSensor]) -> None:
         self.name = name
-        self._sensors = sensors
+        self.sensors = sensors
 
     def get_sensors(self) -> Sequence[Sensor]:
-        return self._sensors
+        return self.sensors
 
 
 class MockBackend(Backend):
@@ -55,6 +64,13 @@ class MockBackend(Backend):
 
         logger.debug("Sending test error to ui")
         self._on_error("Test Error")
+
+        while True:
+            time.sleep(1)
+            for device in self._devices:
+                for sensor in device.sensors:
+                    time.sleep(0.5)
+                    sensor.update()
 
     def register_on_new_device(self, callback: Callable[[Device], None]) -> None:
         self._on_new_device = callback

@@ -1,4 +1,6 @@
 """The TUI/UI implementation for the controller."""
+# textual doesnt fully type `Widget.app`
+# pyright: reportUnknownMemberType=false, reportUnknownArgumentType=false
 
 import threading
 import logging
@@ -10,7 +12,7 @@ from shared.base_packet import SensorValue
 from textual.app import App, ComposeResult
 from textual.containers import HorizontalGroup, VerticalGroup, VerticalScroll
 from textual.reactive import reactive
-from textual.widgets import Checkbox, Footer, Header, Label, Static
+from textual.widgets import Checkbox, Footer, Header, Label
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +25,11 @@ class SensorWidget(HorizontalGroup):
         self.sensor = sensor
 
     def on_mount(self) -> None:
+        self.value = self.sensor.get_value()
+        self.sensor.register_on_update(backend_handler(self.app, self.backend_sensor_update))
+
+    def backend_sensor_update(self) -> None:
+        logger.debug("Got sensor update from backend.")
         self.value = self.sensor.get_value()
 
     def compose(self) -> ComposeResult:
@@ -80,7 +87,7 @@ class SmartHomeApp(App[None]):
         threading.Thread(target=self.backend.start, daemon=True).start()
 
 
-def backend_handler[**P](app: SmartHomeApp, function: Callable[P, None]) -> Callable[P, None]:
+def backend_handler[**P](app: App[None], function: Callable[P, None]) -> Callable[P, None]:
     def on_ui_thread(*args: P.args, **kwargs: P.kwargs) -> None:
         try:
             return function(*args, **kwargs)

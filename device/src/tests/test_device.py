@@ -2,16 +2,18 @@ import pytest
 from device.device import Device
 from device.sensor import BinarySensor, NumericSensor
 
+TEST_UUID = "8F3c92a1-6b47-4d20-pe15-c8a72f0b6349"
+
 
 @pytest.fixture
 def device() -> Device:
-    """Creates a new device for each test."""
-    return Device("device1")
+    """Creates a new device with a UUID for each test."""
+    return Device(TEST_UUID)
 
 
 def test_device_id(device: Device):
-    """Test that a device stores its ID."""
-    assert device.device_id == "device1"
+    """Test that a device stores its UUID."""
+    assert device.uuid == TEST_UUID
 
 
 def test_device_starts_empty(device: Device):

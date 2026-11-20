@@ -8,9 +8,9 @@ from device.sensor import Sensor
 class Device:
     """Represent a simulated device containing multiple sensors."""
 
-    def __init__(self, device_id: str):
-        """Initialize a device with an ID and no sensors."""
-        self.device_id = device_id
+    def __init__(self, uuid: str):
+        """Initialize a device with a persistent UUID and no sensors."""
+        self.uuid = uuid
         self.sensors: dict[str, Sensor] = {}
 
     def add_sensor(self, sensor_id: str, sensor: Sensor) -> None:

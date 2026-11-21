@@ -13,6 +13,7 @@ from shared import PORT
 
 logger = logging.getLogger(__name__)
 
+
 class DeviceClient:
     """Manage TCP communication between a device and the server."""
 
@@ -30,7 +31,11 @@ class DeviceClient:
         sock = socket.create_connection((self.host, self.port), timeout=5.0)
         sock.settimeout(None)
 
-        connection = Connection(sock, TypeAdapter(GenericPacket), self._on_disconnect,)
+        connection = Connection(
+            sock,
+            TypeAdapter(GenericPacket),
+            self._on_disconnect,
+        )
         connection.register(ErrorPacket, self._handle_error)
         connection.register(DisconnectPacket, self._handle_disconnect)
 
@@ -85,4 +90,3 @@ class DeviceClient:
             self._connection = None
             connection.close()
             connection.join(timeout=3.0)
-

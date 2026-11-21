@@ -5,10 +5,9 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, Field
 
 from shared.base_packet import (
-    ActuatorConfiguration,
     BasePacket,
+    Capability,
     GenericPacket,
-    SensorConfiguration,
     SensorValue,
 )
 
@@ -23,7 +22,7 @@ class ControllerConnection(BasePacket, frozen=True):
     """
 
     type: Literal["connect_controller"] = "connect_controller"
-    role: Role
+    role: Role = "user"
 
 
 class Subscribe(BasePacket, frozen=True):
@@ -60,8 +59,7 @@ class DeviceInfo(BaseModel, frozen=True):
 
     device_id: int
     name: str
-    capabilities: dict[str, SensorConfiguration]
-    actuators: dict[str, ActuatorConfiguration] = Field(default_factory=dict)
+    capabilities: dict[str, Capability]
     values: dict[str, SensorValue] = Field(default_factory=dict)
 
 

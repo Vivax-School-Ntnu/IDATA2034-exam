@@ -37,10 +37,7 @@ class Subscribe(BasePacket, frozen=True):
 
 
 class SetActuator(BasePacket, frozen=True):
-    """Request to set the actuator at `address` to `value`.
-
-    Requires a role that is allowed to control actuators.
-    """
+    """Request to set the actuator at `address` to `value`."""
 
     type: Literal["set_actuator"] = "set_actuator"
     address: str

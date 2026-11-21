@@ -49,7 +49,7 @@ For example the payload `{"value": 20}` would be sent as (in hexadecimal) `00000
 
 ### Communication model / message flow
 For devices we will use a push based model in both directions (device pushes sensor updates to the server, and the server pushes actuator commands to the device),
-For the controller to server we will use primarly pull based, with the option for the controller to subscribe to push based updates for certain sensors.
+The controllers will have the option to subscribe to push based updates for certain sensors.
 
 The diagram below provides a high level overview of the nominal flow of the protocol, which will be laid out in more detail below.
 

@@ -4,13 +4,7 @@ from typing import Annotated, Literal
 
 from pydantic import Field
 
-from shared.base_packet import (
-    ActuatorConfiguration,
-    BasePacket,
-    GenericPacket,
-    SensorConfiguration,
-    SensorValue,
-)
+from shared.base_packet import BasePacket, Capability, GenericPacket, SensorValue
 
 
 class DeviceConnection(BasePacket, frozen=True):
@@ -18,8 +12,7 @@ class DeviceConnection(BasePacket, frozen=True):
 
     type: Literal["connect_device"]
     name: str
-    capabilities: dict[str, SensorConfiguration]
-    actuators: dict[str, ActuatorConfiguration] = Field(default_factory=dict)
+    capabilities: dict[str, Capability]
     uuid: str
 
 

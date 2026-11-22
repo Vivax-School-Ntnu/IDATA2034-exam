@@ -7,6 +7,7 @@ import pytest
 from device.client import DeviceClient
 from device.device import Device
 from device.sensor import NumericSensor
+from shared.device_protocol import DeviceConnected
 
 from shared import read_frame
 
@@ -125,3 +126,21 @@ def test_cannot_send_without_connection() -> None:
 
     with pytest.raises(RuntimeError, match="not connected"):
         client.send_sensor_update(device)
+
+
+def test_device_connected_confirmation() -> None:
+    """Test that the client handles device registration confirmation."""
+    client = DeviceClient("127.0.0.1")
+
+    assert client.wait_for_registration(timeout=0) is False
+    assert client.device_id is None
+
+    packet = DeviceConnected(
+        request_id=None,
+        device_id=42,
+    )
+
+    client._handle_device_connected(packet)  # pyright: ignore[reportPrivateUsage]
+
+    assert client.wait_for_registration(timeout=0) is True
+    assert client.device_id == 42

@@ -1,11 +1,12 @@
 """Core protcol packets that all clients need to handle."""
 
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 type SensorType = Literal["numeric", "binary"]
 type SensorValue = int | bool
+type ActuatorType = Literal["numeric", "binary"]
 
 
 class SensorConfiguration(BaseModel):
@@ -14,6 +15,22 @@ class SensorConfiguration(BaseModel):
     type: Literal["sensor"] = "sensor"
     name: str
     sensor_type: SensorType
+
+
+class ActuatorConfiguration(BaseModel):
+    """A description of an actuator.
+
+    `actuator_type` decides which values the actuator accepts: `binary` takes true/false
+    (e.g. a light switch), `numeric` takes a number (e.g. a target temperature).
+    """
+
+    type: Literal["actuator"] = "actuator"
+    name: str
+    actuator_type: ActuatorType
+
+type Capability = Annotated[
+    SensorConfiguration | ActuatorConfiguration, Field(discriminator = "type")
+]
 
 
 class BasePacket(BaseModel, frozen=True, extra="allow"):

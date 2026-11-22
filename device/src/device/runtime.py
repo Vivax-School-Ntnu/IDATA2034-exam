@@ -32,7 +32,9 @@ class DeviceRuntime:
             self.client.connect()
             self.client.send_connect_device(self.device, self.name)
 
-            # TODO: Wait for DeviceConnected before sending updates.
+            if not self.client.wait_for_registration():
+                raise TimeoutError("Device registration timed out.")
+
             while not self._stop_event.wait(self.update_interval):
                 self.client.send_sensor_update(self.device)
         finally:

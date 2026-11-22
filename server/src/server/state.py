@@ -12,6 +12,8 @@ type LocalAddress = str
 
 type GlobalAddress = str
 """A global address, meant to point to a Capability from anywhere like for exmaple "3.temp"."""
+
+
 @dataclass
 class DeviceState:
     """Hold the state of a device."""
@@ -20,6 +22,7 @@ class DeviceState:
     name: str
     capabilities: dict[LocalAddress, Capability]
     values: dict[LocalAddress, SensorValue] = field(default_factory=dict[LocalAddress, SensorValue])
+
 
 @dataclass
 class ControllerState:

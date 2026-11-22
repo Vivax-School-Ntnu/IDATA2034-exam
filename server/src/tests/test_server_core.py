@@ -11,8 +11,7 @@ from shared.connection import Connection
 
 
 def wait_for(condition: Callable[[], bool], timeout: float = 3.0) -> bool:
-    """Poll `condition` until it is true or `timeout` seconds have passed.
-    """
+    """Poll `condition` until it is true or `timeout` seconds have passed."""
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         if condition():

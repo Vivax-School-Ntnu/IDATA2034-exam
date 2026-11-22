@@ -3,7 +3,7 @@
 import logging
 
 from controller.backend import Backend
-from controller.backend.mock_backend import MockBackend, MockDevice, MockSensor
+from controller.backend.mock_backend import MockActuator, MockBackend, MockDevice, MockSensor
 from controller.tui import SmartHomeApp
 
 logger = logging.getLogger(__name__)
@@ -17,15 +17,19 @@ def _create_mock_backend() -> Backend:
                 "AC",
                 [
                     MockSensor("temperature", "numeric", 20),
-                    MockSensor("target_temperature", "numeric", 21),
+                ],
+                [
+                    MockActuator("target_temperature", "numeric", 21),
                 ],
             ),
             MockDevice(
                 "Door",
                 [
                     MockSensor("Open", "binary", False),
-                    MockSensor("Alarmed", "binary", True),
                     MockSensor("outside temperature", "numeric", 12),
+                ],
+                [
+                    MockActuator("Alarmed", "binary", True),
                 ],
             ),
         ]

@@ -11,9 +11,9 @@ from shared.base_packet import SensorValue
 from textual.app import App, ComposeResult
 from textual.containers import HorizontalGroup, VerticalGroup, VerticalScroll
 from textual.reactive import reactive
-from textual.widgets import Checkbox, Footer, Header, Label
+from textual.widgets import Checkbox, Footer, Header, Input, Label
 
-from controller.backend import Backend, Device, Sensor
+from controller.backend import Actuator, Backend, Device, Sensor
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +59,63 @@ class SensorWidget(HorizontalGroup):
                 self.query_exactly_one(".sensor_binary_value", Checkbox).value = bool(value)
 
 
+class ActuatorWidget(HorizontalGroup):
+    """Widget for displaying the name and value of a actuator, as well as changing the value."""
+
+    value: reactive[SensorValue] = reactive(False)
+
+    def __init__(self, actuator: Actuator) -> None:
+        """Create a new actuator widget that subscribes to the given actuator."""
+        super().__init__(classes="actuator")
+        self.actuator = actuator
+
+    def on_mount(self) -> None:
+        """Register callbacks for actuator updates."""
+        self.value = self.actuator.get_value()
+        self.actuator.register_on_update(backend_handler(self.app, self.backend_actuator_update))
+
+    def backend_actuator_update(self) -> None:
+        """Update actuator value from actuator."""
+        logger.debug("Got actuator update from backend.")
+        self.value = self.actuator.get_value()
+
+    def compose(self) -> ComposeResult:
+        """Create widget layout."""
+        match self.actuator.type_:
+            case "numeric":
+                input_widget = Input(type="integer", classes="actuator_numeric_value")
+                input_widget.border_title = self.actuator.name
+                yield input_widget
+            case "binary":
+                yield Checkbox(self.actuator.name, classes="actuator_binary_value")
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        """Update the actuator on the server."""
+        self.app.notify(f"Setting Actuator to {event.value}")
+        try:
+            self.actuator.update_value(int(event.value))
+        except ValueError as exp:
+            self.app.notify(str(exp), severity="error")
+
+    def on_checkbox_changed(self, event: Checkbox.Changed) -> None:
+        """Update the actuator on the server."""
+        self.app.notify(f"Setting Actuator to {event.value}")
+        self.actuator.update_value(event.value)
+
+    def watch_value(self, value: SensorValue) -> None:
+        """Update widget with new actuator value.
+
+        Called automatically by textual when `self.value` changes.
+        """
+        match self.actuator.type_:
+            case "numeric":
+                self.query_exactly_one(".actuator_numeric_value", Input).value = str(value)
+            case "binary":
+                checkbox = self.query_exactly_one(".actuator_binary_value", Checkbox)
+                with checkbox.prevent(Checkbox.Changed):
+                    checkbox.value = bool(value)
+
+
 class DeviceWidget(VerticalGroup):
     """Card widget showing the sensors of a device."""
 
@@ -70,6 +127,7 @@ class DeviceWidget(VerticalGroup):
     def compose(self) -> ComposeResult:
         """Create a list of sensors plus device name."""
         yield Label(self.device.name, classes="device_name")
+        yield from [ActuatorWidget(actuator) for actuator in self.device.get_actuators()]
         yield from [SensorWidget(sensor) for sensor in self.device.get_sensors()]
 
 

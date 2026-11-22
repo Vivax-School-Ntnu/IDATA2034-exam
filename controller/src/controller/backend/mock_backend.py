@@ -5,9 +5,9 @@ import time
 from collections.abc import Callable, Sequence
 from typing import override
 
-from shared.base_packet import SensorType, SensorValue
+from shared.base_packet import ActuatorType, SensorType, SensorValue
 
-from controller.backend import Backend, Device, Sensor
+from controller.backend import Actuator, Backend, Device, Sensor
 
 logger = logging.getLogger(__name__)
 
@@ -41,17 +41,56 @@ class MockSensor(Sensor):
         self._on_update()
 
 
+class MockActuator(Actuator):
+    """A fake actuator."""
+
+    def __init__(self, name: str, type_: ActuatorType, value: SensorValue) -> None:
+        """Create a mock actuator with the given fields."""
+        self.name = name
+        self.type_ = type_
+        self._value = value
+        self._on_update: Callable[[], None] = lambda: None
+
+    @override
+    def get_value(self) -> SensorValue:
+        logger.debug("Getting actuator value")
+        return self._value
+
+    @override
+    def register_on_update(self, callback: Callable[[], None]) -> None:
+        self._on_update = callback
+
+    @override
+    def update_value(self, value: SensorValue) -> None:
+        logger.debug(f"Got actuator update from tui {value}")
+        self._value = value
+
+    def simulate_update(self) -> None:
+        """Simulate a change to the given actuator."""
+        match self.type_:
+            case "numeric":
+                self._value += 1
+            case "binary":
+                self._value = not self._value
+        self._on_update()
+
+
 class MockDevice(Device):
     """A fake device."""
 
-    def __init__(self, name: str, sensors: list[MockSensor]) -> None:
+    def __init__(self, name: str, sensors: list[MockSensor], actuators: list[MockActuator]) -> None:
         """Create a mock device with the given sensors."""
         self.name = name
         self.sensors = sensors
+        self.actuators = actuators
 
     @override
     def get_sensors(self) -> Sequence[Sensor]:
         return self.sensors
+
+    @override
+    def get_actuators(self) -> Sequence[Actuator]:
+        return self.actuators
 
 
 class MockBackend(Backend):
@@ -76,11 +115,14 @@ class MockBackend(Backend):
         self._on_error("Test Error")
 
         while True:
-            time.sleep(1)
+            time.sleep(5)
             for device in self._devices:
                 for sensor in device.sensors:
-                    time.sleep(0.5)
+                    time.sleep(0.1)
                     sensor.update()
+                for actuator in device.actuators:
+                    time.sleep(0.1)
+                    actuator.simulate_update()
 
     @override
     def register_on_new_device(self, callback: Callable[[Device], None]) -> None:

@@ -11,6 +11,7 @@ from typing import Annotated
 from pydantic import Field
 
 from shared.base_packet import BasePacket, GenericPacket
+from shared.controller_protocol import ControllerToServerPacket
 from shared.device_protocol import DeviceToServerPacket
 
 PORT = 8043
@@ -56,4 +57,6 @@ def read_frame(reader: Reader[bytes]) -> "BasePacket":
     return packet
 
 
-ToServerPacket = Annotated[GenericPacket | DeviceToServerPacket, Field(discriminator="type")]
+ToServerPacket = Annotated[
+    GenericPacket | DeviceToServerPacket | ControllerToServerPacket, Field(discriminator="type")
+]

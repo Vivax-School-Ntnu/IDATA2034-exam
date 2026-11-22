@@ -2,11 +2,17 @@
 
 import logging
 import socket
+from threading import Event
 
 from pydantic import TypeAdapter
-from shared.base_packet import DisconnectPacket, ErrorPacket, GenericPacket
+from shared.base_packet import DisconnectPacket, ErrorPacket
 from shared.connection import Connection
-from shared.device_protocol import DeviceConnection, SensorUpdate
+from shared.device_protocol import (
+    DeviceConnected,
+    DeviceConnection,
+    SensorUpdate,
+    ServerToDevicePacket,
+)
 
 from device.device import Device
 from shared import PORT
@@ -23,21 +29,28 @@ class DeviceClient:
         self.port = port
         self._connection: Connection | None = None
 
+        self._registered = Event()
+        self.device_id: int | None = None
+
     def connect(self) -> None:
         """Establish a TCP connection and start receiving messages."""
         if self._connection is not None:
             raise RuntimeError("Client is already connected")
+
+        self._registered.clear()
+        self.device_id = None
 
         sock = socket.create_connection((self.host, self.port), timeout=5.0)
         sock.settimeout(None)
 
         connection = Connection(
             sock,
-            TypeAdapter(GenericPacket),
+            TypeAdapter(ServerToDevicePacket),
             self._on_disconnect,
         )
         connection.register(ErrorPacket, self._handle_error)
         connection.register(DisconnectPacket, self._handle_disconnect)
+        connection.register(DeviceConnected, self._handle_device_connected)
 
         self._connection = connection
         connection.start()
@@ -70,6 +83,15 @@ class DeviceClient:
 
         self._connection.send(packet)
 
+    def _handle_device_connected(self, packet: DeviceConnected) -> None:
+        """Handle successful device registration."""
+        self.device_id = packet.device_id
+        self._registered.set()
+
+    def wait_for_registration(self, timeout: float = 5.0) -> bool:
+        """Wait for the server to confirm device registration."""
+        return self._registered.wait(timeout)
+
     def _handle_error(self, packet: ErrorPacket) -> None:
         """Log errors received from the server."""
         logger.error(f"Server error for request {packet.request_id}: {packet.msg}")
@@ -81,12 +103,17 @@ class DeviceClient:
     def _on_disconnect(self) -> None:
         """Reset the connection when the read loop terminates."""
         self._connection = None
+        self._registered.clear()
+        self.device_id = None
 
     def close(self) -> None:
         """Close the connection and stop its reader thread."""
         connection = self._connection
 
+        self._connection = None
+        self._registered.clear()
+        self.device_id = None
+
         if connection is not None:
-            self._connection = None
             connection.close()
             connection.join(timeout=3.0)

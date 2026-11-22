@@ -14,6 +14,7 @@ from shared.controller_protocol import (
     DeviceAdded,
     DeviceInfo,
     SensorReading,
+    Subscribe,
 )
 from shared.device_protocol import DeviceConnected, DeviceConnection, SensorUpdate
 
@@ -176,7 +177,31 @@ class Server:
         for connection, reading in to_send:
             connection.send(reading)
 
-        
+    def _handle_subscribe(self, connection_id: ConnectionId, packet: Subscribe) -> None:
+        """Subscribe a controller to addresses and send their current values."""
+        to_send: list[SensorReading] = []
+        with self._clients_lock:
+            connection = self._clients[connection_id]
+            unknown: list[str] = []
+            for address in packet.addresses:
+                device_part, _, local_id = address.partition(".")
+                device = self._devices.get(int(device_part)) if device_part.isdigit() else None
+                if device is None or local_id not in device.capabilities:
+                    unknown.append(address)
+            if not unknown:
+                self._controllers[connection_id].subscriptions.update(packet.addresses)
+                for address in packet.addresses:
+                    device_part, _, local_id = address.partition(".")
+                    value = self._devices[int(device_part)].values.get(local_id)
+                    if value is not None:
+                        to_send.append(SensorReading(request_id=None, address=address, value=value))
+        if unknown:
+            connection.send(
+                ErrorPacket(request_id=packet.request_id, msg=f"Unknown addresses: {', '.join(unknown)}")
+            )
+            return
+        for reading in to_send:
+            connection.send(reading)
 
     def _handle_controller_connection(self, connection_id: ConnectionId, packet: ControllerConnection) -> None:
         """Handle a new controller getting connected to teh server."""

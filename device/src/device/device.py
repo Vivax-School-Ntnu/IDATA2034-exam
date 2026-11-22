@@ -1,6 +1,6 @@
 """Manage sensors belonging to a simulated device."""
 
-from shared.base_packet import SensorConfiguration, SensorValue
+from shared.base_packet import Capability, SensorConfiguration, SensorValue
 
 from device.sensor import Sensor
 
@@ -27,7 +27,7 @@ class Device:
         """Return the current values of all sensors."""
         return {sensor_id: sensor.get_value() for sensor_id, sensor in self.sensors.items()}
 
-    def get_capabilities(self) -> dict[str, SensorConfiguration]:
+    def get_capabilities(self) -> dict[str, Capability]:
         """Return the configuration of all sensors."""
         return {
             sensor_id: SensorConfiguration(

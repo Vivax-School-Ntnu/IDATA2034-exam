@@ -33,12 +33,14 @@ def test_runtime_connects_and_closes() -> None:
     with (
         patch.object(client, "connect") as connect,
         patch.object(client, "send_connect_device") as register,
+        patch.object(client, "wait_for_registration", return_value=True) as wait_for_registration,
         patch.object(client, "close") as close,
     ):
         runtime.run()
 
     connect.assert_called_once_with()
     register.assert_called_once_with(device, "Test device")
+    wait_for_registration.assert_called_once_with()
     close.assert_called_once_with()
 
 
@@ -59,6 +61,7 @@ def test_runtime_sends_sensor_updates() -> None:
     with (
         patch.object(client, "connect"),
         patch.object(client, "send_connect_device"),
+        patch.object(client, "wait_for_registration", return_value=True),
         patch.object(
             client,
             "send_sensor_update",
@@ -85,6 +88,7 @@ def test_runtime_closes_on_error() -> None:
     with (
         patch.object(client, "connect"),
         patch.object(client, "send_connect_device"),
+        patch.object(client, "wait_for_registration", return_value=True),
         patch.object(
             client,
             "send_sensor_update",
@@ -95,4 +99,25 @@ def test_runtime_closes_on_error() -> None:
     ):
         runtime.run()
 
+    close.assert_called_once_with()
+
+
+def test_runtime_registration_timeout() -> None:
+    """Test that runtime stops if registration is not confirmed."""
+    device = Device("test-uuid")
+    client = DeviceClient("127.0.0.1")
+    runtime = DeviceRuntime(device, client, "Test device")
+
+    with (
+        patch.object(client, "connect"),
+        patch.object(client, "send_connect_device"),
+        patch.object(client, "wait_for_registration", return_value=False) as wait_for_registration,
+        patch.object(client, "send_sensor_update") as send_update,
+        patch.object(client, "close") as close,
+        pytest.raises(TimeoutError, match="Device registration timed out"),
+    ):
+        runtime.run()
+
+    wait_for_registration.assert_called_once_with()
+    send_update.assert_not_called()
     close.assert_called_once_with()

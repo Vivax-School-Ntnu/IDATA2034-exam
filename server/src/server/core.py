@@ -6,13 +6,14 @@ import threading
 from pathlib import Path
 
 from pydantic import TypeAdapter
-from shared.base_packet import ActuatorConfiguration, ErrorPacket
+from shared.base_packet import ActuatorConfiguration, DisconnectPacket, ErrorPacket
 from shared.connection import Connection
 from shared.controller_protocol import (
     ConnectionConfirmation,
     ControllerConnection,
     DeviceAdded,
     DeviceInfo,
+    DeviceRemoved,
     SensorReading,
     SetActuator,
     Subscribe,
@@ -115,18 +116,30 @@ class Server:
             self._clients[connection_id] = connection
         return connection
 
+    def _handle_disconnect(self, connection_id: ConnectionId, _packet: DisconnectPacket) -> None:
+        """Handle the disconnect packet."""
+        with self._clients_lock:
+            connection = self._clients[connection_id]
+        connection.close()
+
     def _remove_client(self, connection_id: ConnectionId) -> None:
         """Remove a client from the registry."""
+        removed: DeviceRemoved | None = None
+        controller_connections : list[Connection] = []
         with self._clients_lock:
             device_id = self._device_ids.pop(connection_id, None)
             if device_id is not None:
                 state = self._devices.get(device_id)
                 if state is not None and state.connection is self._clients[connection_id]:
-
+                    removed = DeviceRemoved(request_id=None, device_id=device_id)
+                    controller_connections = [controllers.connection for controllers in self._controllers.values()]
                     del self._devices[device_id]
             self._controllers.pop(connection_id, None)
             del self._clients[connection_id]
         logger.info(f"Client {connection_id} got removed")
+        if removed is not None:
+            for connection in controller_connections:
+                connection.send(removed)
 
     def _accept_client(self) -> None:
         """Wait up to `accept_timeout` for a client, then register it and serve it in a thread."""
@@ -163,8 +176,12 @@ class Server:
                 self._next_device_id += 1
                 self._save_hardware_ids()
             device_id = self._device_ids[connection_id]
-            self._devices[device_id] = DeviceState(connection, packet.name, packet.capabilities)
+            device_state = self._devices[device_id] = DeviceState(connection, packet.name, packet.capabilities)
+            device_info = DeviceInfo(device_id=device_id, name=device_state.name, capabilities=device_state.capabilities, values=device_state.values)
+            controller_connections = [c.connection for c in self._controllers.values()]
         connection.send(DeviceConnected(request_id=packet.request_id, device_id=device_id))
+        for controller_connection in controller_connections:
+            controller_connection.send(DeviceAdded(request_id=None, device=device_info))
 
     def _handle_sensor_update(self, connection_id: ConnectionId, packet: SensorUpdate) -> None:
         """Store a device's new values and push them to subscribed controllers."""
@@ -253,7 +270,7 @@ class Server:
         return len(self._devices)
 
     def controller_count(self) -> int:
-        """"Return the amount of currently connected devices."""
+        """Return the amount of currently connected devices."""
         return len(self._controllers)
     
     def device_id_for(self, uuid: HardwareId) -> DeviceId | None:

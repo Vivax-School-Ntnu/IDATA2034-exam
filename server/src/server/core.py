@@ -6,7 +6,7 @@ import threading
 from pathlib import Path
 
 from pydantic import TypeAdapter
-from shared.base_packet import ErrorPacket
+from shared.base_packet import ActuatorConfiguration, ErrorPacket
 from shared.connection import Connection
 from shared.controller_protocol import (
     ConnectionConfirmation,
@@ -14,9 +14,10 @@ from shared.controller_protocol import (
     DeviceAdded,
     DeviceInfo,
     SensorReading,
+    SetActuator,
     Subscribe,
 )
-from shared.device_protocol import DeviceConnected, DeviceConnection, SensorUpdate
+from shared.device_protocol import DeviceConnected, DeviceConnection, SensorUpdate, UpdateActuator
 
 from server.state import ControllerState, DeviceState
 from shared import PORT, ToServerPacket
@@ -107,6 +108,10 @@ class Server:
                                 )
             connection.register(SensorUpdate, lambda packet:self._handle_sensor_update(connection_id, packet)
             )
+            connection.register(Subscribe, lambda packet: self._handle_subscribe(connection_id, packet)
+                                )
+            connection.register(SetActuator, lambda packet: self._handle_set_actuator(connection_id, packet)
+                                )
             self._clients[connection_id] = connection
         return connection
 
@@ -203,6 +208,17 @@ class Server:
         for reading in to_send:
             connection.send(reading)
 
+    def _handle_set_actuator(self, connection_id: ConnectionId, packet: SetActuator) -> None:
+        """Set the value of an actuator."""
+        device_id, _, local_id = packet.address.partition(".")
+        with self._clients_lock:
+            device = self._devices[int(device_id)]
+            if not isinstance(device.capabilities[local_id], ActuatorConfiguration):
+                raise TypeError(f"{packet.address} is not an actuator")
+            self._controllers[connection_id].subscriptions.add(packet.address)
+            device.connection.send(UpdateActuator(request_id=None, actuator=local_id, value=packet.value))
+    
+
     def _handle_controller_connection(self, connection_id: ConnectionId, packet: ControllerConnection) -> None:
         """Handle a new controller getting connected to teh server."""
         with self._clients_lock:
@@ -214,7 +230,8 @@ class Server:
         connection.send(ConnectionConfirmation(request_id=packet.request_id))
         for device in devices:
             connection.send(DeviceAdded(request_id=None, device=device))
-        
+
+
     def _save_hardware_ids(self) -> None:
         """Save hardware IDs to a persistent file. Does nothing if persistence is not enabled.
         

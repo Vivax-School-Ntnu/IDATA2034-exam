@@ -1,3 +1,5 @@
+"""Server side state for the connected controllers and devices."""
+
 from dataclasses import dataclass, field
 
 from shared.base_packet import Capability

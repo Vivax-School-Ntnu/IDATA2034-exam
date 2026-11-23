@@ -4,6 +4,7 @@ import logging
 
 from controller.backend import Backend
 from controller.backend.mock_backend import MockActuator, MockBackend, MockDevice, MockSensor
+from controller.backend.real_backend import RealBackend
 from controller.tui import SmartHomeApp
 
 logger = logging.getLogger(__name__)
@@ -41,4 +42,5 @@ def main() -> None:
     logging.basicConfig(filename="controller.log", level=logging.DEBUG)
     logger.info("Starting app")
 
-    SmartHomeApp(_create_mock_backend()).run()
+    # SmartHomeApp(_create_mock_backend()).run()
+    SmartHomeApp(RealBackend(("127.0.0.1", 8043))).run()

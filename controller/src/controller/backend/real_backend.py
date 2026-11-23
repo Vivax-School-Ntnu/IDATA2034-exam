@@ -19,6 +19,7 @@ from shared.controller_protocol import (
     ControllerConnection,
     DeviceAdded,
     DeviceInfo,
+    DeviceRemoved,
     SensorReading,
     ServerToControllerPacket,
     SetActuator,
@@ -113,11 +114,16 @@ class RealDevice(Device):
             full_address = f"{base_address}.{cap_id}"
             addresses.append(full_address)
             if cap.type == "sensor":
-                self.sensors[cap_id] = RealSensor(cap, device_info.values[cap_id])
+                default = 0 if cap.sensor_type == "numeric" else False
             else:
-                self.actuators[cap_id] = RealActuator(
-                    connection, full_address, cap, device_info.values[cap_id]
-                )
+                default = 0 if cap.actuator_type == "numeric" else False
+            if cap_id not in device_info.values:
+                logger.debug(f"No value yet for {full_address}, using {default}")
+            value = device_info.values.get(cap_id, default)
+            if cap.type == "sensor":
+                self.sensors[cap_id] = RealSensor(cap, value)
+            else:
+                self.actuators[cap_id] = RealActuator(connection, full_address, cap, value)
 
         connection.send(Subscribe(addresses=addresses, request_id=None))
 
@@ -148,6 +154,7 @@ class RealBackend(Backend):
         self._server = server
         self._on_error: Callable[[str], None] = lambda _msg: None
         self._on_new_device: Callable[[Device], None] = lambda _device: None
+        self._on_device_removed: Callable[[Device], None] = lambda _device: None
         self._devices: dict[int, RealDevice] = {}
 
     @override
@@ -157,6 +164,10 @@ class RealBackend(Backend):
     @override
     def register_on_new_device(self, callback: Callable[[Device], None]) -> None:
         self._on_new_device = callback
+
+    @override
+    def register_on_device_removed(self, callback: Callable[[Device], None]) -> None:
+        self._on_device_removed = callback
 
     @override
     def start(self) -> None:
@@ -170,6 +181,7 @@ class RealBackend(Backend):
         connection.register(
             DeviceAdded, lambda packet: self._handle_device_added(connection, packet)
         )
+        connection.register(DeviceRemoved, self._handle_device_removed)
         connection.register(SensorReading, self._handle_sensor_reading)
 
         connection.send(ControllerConnection(request_id=str(uuid4())))
@@ -178,8 +190,16 @@ class RealBackend(Backend):
 
     def _handle_device_added(self, connection: Connection, packet: DeviceAdded) -> None:
         device = RealDevice(connection, packet.device)
+        old_device = self._devices.get(packet.device.device_id)
         self._devices[packet.device.device_id] = device
+        if old_device is not None:
+            self._on_device_removed(old_device)
         self._on_new_device(device)
+
+    def _handle_device_removed(self, packet: DeviceRemoved) -> None:
+        device = self._devices.pop(packet.device_id, None)
+        if device is not None:
+            self._on_device_removed(device)
 
     def _handle_sensor_reading(self, packet: SensorReading) -> None:
         device_id, sensor_address = packet.address.split(".", 1)

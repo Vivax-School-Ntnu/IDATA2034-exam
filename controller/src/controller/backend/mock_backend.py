@@ -129,5 +129,9 @@ class MockBackend(Backend):
         self._on_new_device = callback
 
     @override
+    def register_on_device_removed(self, callback: Callable[[Device], None]) -> None:
+        pass
+
+    @override
     def register_on_error(self, callback: Callable[[str], None]) -> None:
         self._on_error = callback

@@ -153,11 +153,21 @@ class SmartHomeApp(App[None]):
         logger.debug(f"New device from backend: {device.name}.")
         self.query_exactly_one("#devices").mount(DeviceWidget(device))
 
+    def backend_on_device_removed(self, device: Device) -> None:
+        """Remove the given device from the tui."""
+        logger.debug(f"Device removed from backend: {device.name}.")
+        for widget in self.query(DeviceWidget):
+            if widget.device is device:
+                widget.remove()
+
     def on_mount(self) -> None:
         """Start the backend and register callbacks."""
         logger.debug("App on mount called.")
 
         self.backend.register_on_new_device(backend_handler(self, self.backend_on_device_added))
+        self.backend.register_on_device_removed(
+            backend_handler(self, self.backend_on_device_removed)
+        )
         self.backend.register_on_error(
             backend_handler(self, lambda msg: self.notify(msg, severity="error"))
         )

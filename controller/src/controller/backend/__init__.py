@@ -69,5 +69,9 @@ class Backend(ABC):
         """Register callback for when a device is added."""
 
     @abstractmethod
+    def register_on_device_removed(self, callback: Callable[[Device], None]) -> None:
+        """Register callback for when a device is removed."""
+
+    @abstractmethod
     def register_on_error(self, callback: Callable[[str], None]) -> None:
         """Register callback for when a error occurs in the backend."""

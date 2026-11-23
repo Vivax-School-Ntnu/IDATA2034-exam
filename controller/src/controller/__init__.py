@@ -43,7 +43,7 @@ def main() -> None:
     logging.basicConfig(filename="controller.log", level=logging.DEBUG)
     logger.info("Starting app")
 
-    if sys.argv[1] == "--mock":
+    if "--mock" in sys.argv:
         SmartHomeApp(_create_mock_backend()).run()
     else:
         SmartHomeApp(RealBackend(("127.0.0.1", 8043))).run()

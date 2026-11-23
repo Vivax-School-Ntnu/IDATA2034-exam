@@ -1,0 +1,11 @@
+*
+!pyproject.toml
+!uv.lock
+!shared/
+!server/
+!device/
+!controller/
+**/__pycache__
+**/.pytest_cache
+**/*.log
+**/tests

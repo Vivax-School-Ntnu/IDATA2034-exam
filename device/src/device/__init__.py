@@ -1,6 +1,7 @@
 """A simulated IoT device providing actuators and sensors."""
 
 import argparse
+import os
 from pathlib import Path
 
 from device.actuator import BinaryActuator, NumericActuator
@@ -41,7 +42,7 @@ def main() -> None:
         device.add_sensor("temperature", NumericSensor("Bathroom temperature"))
         device.add_actuator("lamp", BinaryActuator("Bathroom light"))
 
-    client = DeviceClient("127.0.0.1")
+    client = DeviceClient(os.environ.get("SERVER_HOST", "127.0.0.1"))
 
     runtime = DeviceRuntime(
         device=device,

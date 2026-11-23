@@ -1,0 +1,40 @@
+services:
+  server:
+    build:
+      context: .
+      target: server
+    ports:
+      - "8043:8043"
+    volumes:
+      - server-state:/state
+    healthcheck:
+      test: ["CMD-SHELL", "grep -q ' 00000000:1F6B 00000000:0000 0A' /proc/net/tcp"]
+      interval: 1s
+      timeout: 1s
+      retries: 10
+    restart: unless-stopped
+
+  living-room: &device
+    build:
+      context: .
+      target: device
+    command: ["device", "--config", "living-room"]
+    environment:
+      SERVER_HOST: server
+    volumes:
+      - living-room-state:/state
+    depends_on:
+      server:
+        condition: service_healthy
+    restart: unless-stopped
+
+  bathroom:
+    <<: *device
+    command: ["device", "--config", "bathroom"]
+    volumes:
+      - bathroom-state:/state
+
+volumes:
+  server-state:
+  living-room-state:
+  bathroom-state:

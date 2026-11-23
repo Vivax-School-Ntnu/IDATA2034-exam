@@ -6,10 +6,21 @@ import threading
 from pathlib import Path
 
 from pydantic import TypeAdapter
-from shared.base_packet import ErrorPacket
+from shared.base_packet import ActuatorConfiguration, DisconnectPacket, ErrorPacket
 from shared.connection import Connection
-from shared.device_protocol import DeviceConnection
+from shared.controller_protocol import (
+    ConnectionConfirmation,
+    ControllerConnection,
+    DeviceAdded,
+    DeviceInfo,
+    DeviceRemoved,
+    SensorReading,
+    SetActuator,
+    Subscribe,
+)
+from shared.device_protocol import DeviceConnected, DeviceConnection, SensorUpdate, UpdateActuator
 
+from server.state import ControllerState, DeviceState
 from shared import PORT, ToServerPacket
 
 logger = logging.getLogger(__name__)
@@ -43,13 +54,15 @@ class Server:
         if self._id_file is not None and self._id_file.exists():
             self._hardware_ids = _ID_MAP_ADAPTER.validate_json(self._id_file.read_bytes())
 
-        self._clients: dict[int, Connection] = {}
+        self._clients: dict[ConnectionId, Connection] = {}
         self._device_ids: dict[ConnectionId, DeviceId] = {}
         self._clients_lock = threading.Lock()
-        self._next_id: int = 1
-        self._next_device_id: int = max(self._hardware_ids.values(), default=0) + 1
+        self._next_connection_id: ConnectionId = 1
+        self._next_device_id: DeviceId = max(self._hardware_ids.values(), default=0) + 1
         self.accept_timeout = accept_timeout
         self.running = False
+        self._devices: dict[DeviceId, DeviceState] = {}
+        self._controllers: dict[ConnectionId, ControllerState] = {}
 
     def _bind(self, host: str) -> None:
         """Bind and listen on the given host.
@@ -79,27 +92,65 @@ class Server:
     def _add_client(self, conn: socket.socket, address: tuple[str, int]) -> Connection:
         """Register a new client and return its connection."""
         with self._clients_lock:
-            client_id = self._next_id
-            self._next_id += 1
-            logger.info(f"Got client with id {client_id} from {address}")
+            connection_id = self._next_connection_id
+            self._next_connection_id += 1
+            logger.info(f"Got client with id {connection_id} from {address}")
 
             connection = Connection(
-                conn, TypeAdapter(ToServerPacket), lambda: self._remove_client(client_id)
+                conn, TypeAdapter(ToServerPacket), lambda: self._remove_client(connection_id)
             )
             connection.register(
-                DeviceConnection, lambda packet: self._handle_device_connection(client_id, packet)
+                DeviceConnection,
+                lambda packet: self._handle_device_connection(connection_id, packet),
             )
-            connection.register(ErrorPacket, lambda packet: self._handle_error(client_id, packet))
-
-            self._clients[client_id] = connection
+            connection.register(
+                ControllerConnection,
+                lambda packet: self._handle_controller_connection(connection_id, packet),
+            )
+            connection.register(
+                ErrorPacket, lambda packet: self._handle_error(connection_id, packet)
+            )
+            connection.register(
+                SensorUpdate, lambda packet: self._handle_sensor_update(connection_id, packet)
+            )
+            connection.register(
+                Subscribe, lambda packet: self._handle_subscribe(connection_id, packet)
+            )
+            connection.register(
+                SetActuator, lambda packet: self._handle_set_actuator(connection_id, packet)
+            )
+            connection.register(
+                DisconnectPacket, lambda packet: self._handle_disconnect(connection_id, packet)
+            )
+            self._clients[connection_id] = connection
         return connection
 
-    def _remove_client(self, client_id: int) -> None:
-        """Remove a client from the registry."""
+    def _handle_disconnect(self, connection_id: ConnectionId, _packet: DisconnectPacket) -> None:
+        """Handle the disconnect packet."""
         with self._clients_lock:
-            del self._clients[client_id]
-            self._device_ids.pop(client_id, None)
-        print(f"Client {client_id} removed")
+            connection = self._clients[connection_id]
+        connection.close()
+
+    def _remove_client(self, connection_id: ConnectionId) -> None:
+        """Remove a client from the registry."""
+        removed: DeviceRemoved | None = None
+        controller_connections: list[Connection] = []
+        with self._clients_lock:
+            device_id = self._device_ids.pop(connection_id, None)
+            if device_id is not None:
+                state = self._devices.get(device_id)
+                if state is not None and state.connection is self._clients[connection_id]:
+                    removed = DeviceRemoved(request_id=None, device_id=device_id)
+                    controller_connections = [
+                        controllers.connection for controllers in self._controllers.values()
+                    ]
+                    del self._devices[device_id]
+            self._controllers.pop(connection_id, None)
+            del self._clients[connection_id]
+        logger.info(f"Client {connection_id} got removed")
+        if removed is not None:
+            for connection in controller_connections:
+                connection.send(removed)
 
     def _accept_client(self) -> None:
         """Wait up to `accept_timeout` for a client, then register it and serve it in a thread."""
@@ -115,29 +166,136 @@ class Server:
         connection = self._add_client(conn, address)
         connection.start()
 
-    def _handle_error(self, client_id: int, packet: ErrorPacket) -> None:
-        logger.error(f"Error from {client_id}, request {packet.request_id}: {packet.msg}")
+    def _handle_error(self, connection_id: ConnectionId, packet: ErrorPacket) -> None:
+        logger.error(f"Error from {connection_id}, request {packet.request_id}: {packet.msg}")
 
-    def _handle_device_connection(self, client_id: int, packet: DeviceConnection) -> None:
+    def _handle_device_connection(
+        self, connection_id: ConnectionId, packet: DeviceConnection
+    ) -> None:
         """Handle the device connection packet."""
         with self._clients_lock:
+            self._check_fresh(connection_id=connection_id)
+            connection = self._clients[connection_id]
             if packet.uuid in self._hardware_ids:
-                self._device_ids[client_id] = self._hardware_ids[packet.uuid]
+                self._device_ids[connection_id] = self._hardware_ids[packet.uuid]
                 logger.info(
-                    f"Device reconnected. Client id: {client_id}, Device id: {self._device_ids[client_id]}"
+                    f"Device reconnected. Client id: {connection_id}, Device id: {self._device_ids[connection_id]}"
                 )
             else:
                 self._hardware_ids[packet.uuid] = self._next_device_id
-                self._device_ids[client_id] = self._next_device_id
+                self._device_ids[connection_id] = self._next_device_id
                 logger.info(
-                    f"New device. Client id: {client_id}. Device id: {self._next_device_id}"
+                    f"New device. Client id: {connection_id}. Device id: {self._next_device_id}"
                 )
                 self._next_device_id += 1
                 self._save_hardware_ids()
+            device_id = self._device_ids[connection_id]
+            device_state = self._devices[device_id] = DeviceState(
+                connection, packet.name, packet.capabilities
+            )
+            device_info = DeviceInfo(
+                device_id=device_id,
+                name=device_state.name,
+                capabilities=device_state.capabilities,
+                values=device_state.values,
+            )
+            controller_connections = [c.connection for c in self._controllers.values()]
+        connection.send(DeviceConnected(request_id=packet.request_id, device_id=device_id))
+        for controller_connection in controller_connections:
+            controller_connection.send(DeviceAdded(request_id=None, device=device_info))
+
+    def _handle_sensor_update(self, connection_id: ConnectionId, packet: SensorUpdate) -> None:
+        """Store a device's new values and push them to subscribed controllers."""
+        to_send: list[tuple[Connection, SensorReading]] = []
+        with self._clients_lock:
+            self._check_device(connection_id=connection_id)
+            device_id = self._device_ids[connection_id]
+            self._devices[device_id].values.update(packet.sensors)
+            for state in self._controllers.values():
+                for local_address, value in packet.sensors.items():
+                    address = f"{device_id}.{local_address}"
+                    if address in state.subscriptions:
+                        to_send.append(
+                            (
+                                state.connection,
+                                SensorReading(request_id=None, address=address, value=value),
+                            )
+                        )
+        for connection, reading in to_send:
+            connection.send(reading)
+
+    def _handle_subscribe(self, connection_id: ConnectionId, packet: Subscribe) -> None:
+        """Subscribe a controller to addresses and send their current values."""
+        to_send: list[SensorReading] = []
+        with self._clients_lock:
+            self._check_controller(connection_id=connection_id)
+            connection = self._clients[connection_id]
+            unknown: list[str] = []
+            for address in packet.addresses:
+                device_part, _, local_id = address.partition(".")
+                device = self._devices.get(int(device_part)) if device_part.isdigit() else None
+                if device is None or local_id not in device.capabilities:
+                    unknown.append(address)
+            if not unknown:
+                self._controllers[connection_id].subscriptions.update(packet.addresses)
+                for address in packet.addresses:
+                    device_part, _, local_id = address.partition(".")
+                    value = self._devices[int(device_part)].values.get(local_id)
+                    if value is not None:
+                        to_send.append(SensorReading(request_id=None, address=address, value=value))
+        if unknown:
+            connection.send(
+                ErrorPacket(
+                    request_id=packet.request_id, msg=f"Unknown addresses: {', '.join(unknown)}"
+                )
+            )
+            return
+        for reading in to_send:
+            connection.send(reading)
+
+    def _handle_set_actuator(self, connection_id: ConnectionId, packet: SetActuator) -> None:
+        """Set the value of an actuator."""
+        device_id, _, local_id = packet.address.partition(".")
+        with self._clients_lock:
+            self._check_controller(connection_id=connection_id)
+            device = self._devices[int(device_id)]
+            actuator = device.capabilities[local_id]
+            if not isinstance(actuator, ActuatorConfiguration):
+                raise TypeError(f"{packet.address} is not an actuator")
+            if actuator.actuator_type == "binary" and not isinstance(packet.value, bool):
+                raise TypeError(f"{packet.address} takes true or false")
+            if actuator.actuator_type == "numeric" and isinstance(packet.value, bool):
+                raise TypeError(f"{packet.address} takes a number.")
+            self._controllers[connection_id].subscriptions.add(packet.address)
+            device.connection.send(
+                UpdateActuator(request_id=None, actuator=local_id, value=packet.value)
+            )
+
+    def _handle_controller_connection(
+        self, connection_id: ConnectionId, packet: ControllerConnection
+    ) -> None:
+        """Handle a new controller getting connected to teh server."""
+        with self._clients_lock:
+            self._check_fresh(connection_id=connection_id)
+            connection = self._clients[connection_id]
+            self._controllers[connection_id] = ControllerState(connection, role=packet.role)
+            devices: list[DeviceInfo] = []
+            for device_id, state in self._devices.items():
+                devices.append(
+                    DeviceInfo(
+                        device_id=device_id,
+                        name=state.name,
+                        capabilities=state.capabilities,
+                        values=state.values,
+                    )
+                )
+        connection.send(ConnectionConfirmation(request_id=packet.request_id))
+        for device in devices:
+            connection.send(DeviceAdded(request_id=None, device=device))
 
     def _save_hardware_ids(self) -> None:
         """Save hardware IDs to a persistent file. Does nothing if persistence is not enabled.
-        
+
         Caller must call under _clients_lock.
         """
         if self._id_file is None:
@@ -146,15 +304,38 @@ class Server:
         tmp = self._id_file.with_suffix(".tmp")
         tmp.write_bytes(data)
         tmp.replace(self._id_file)
-    
+
     def client_count(self) -> int:
         """Return the amount of currently connected clients."""
         return len(self._clients)
+
+    def device_count(self) -> int:
+        """Return the amount of currently connected devices."""
+        return len(self._devices)
+
+    def controller_count(self) -> int:
+        """Return the amount of currently connected devices."""
+        return len(self._controllers)
 
     def device_id_for(self, uuid: HardwareId) -> DeviceId | None:
         """Return the device id assigned to `uuid`, or `None` if that device has never connected."""
         with self._clients_lock:
             return self._hardware_ids.get(uuid)
+
+    def _check_device(self, connection_id: ConnectionId) -> None:
+        """Check that the connection is device, raise if not. Use while holding a lock."""
+        if connection_id not in self._device_ids:
+            raise PermissionError("This packet supports only devices.")
+
+    def _check_controller(self, connection_id: ConnectionId) -> None:
+        """Check that the connection is controller, raise if not. Use while holding a lock."""
+        if connection_id not in self._controllers:
+            raise PermissionError("This packet supports controllers only.")
+
+    def _check_fresh(self, connection_id: ConnectionId) -> None:
+        """Check if the connection is already registered, raise if is. Use while holding a lock."""
+        if connection_id in self._device_ids or connection_id in self._controllers:
+            raise PermissionError("Connection is already registered.")
 
     def close(self) -> None:
         """Stop accepting clients and close the listening socket."""

@@ -28,8 +28,9 @@ class ActuatorConfiguration(BaseModel):
     name: str
     actuator_type: ActuatorType
 
+
 type Capability = Annotated[
-    SensorConfiguration | ActuatorConfiguration, Field(discriminator = "type")
+    SensorConfiguration | ActuatorConfiguration, Field(discriminator="type")
 ]
 
 

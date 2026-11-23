@@ -1,6 +1,7 @@
 """Controller for the IoT network, connects to the server and provides a GUI."""
 
 import logging
+import sys
 
 from controller.backend import Backend
 from controller.backend.mock_backend import MockActuator, MockBackend, MockDevice, MockSensor
@@ -42,5 +43,7 @@ def main() -> None:
     logging.basicConfig(filename="controller.log", level=logging.DEBUG)
     logger.info("Starting app")
 
-    # SmartHomeApp(_create_mock_backend()).run()
-    SmartHomeApp(RealBackend(("127.0.0.1", 8043))).run()
+    if sys.argv[1] == "--mock":
+        SmartHomeApp(_create_mock_backend()).run()
+    else:
+        SmartHomeApp(RealBackend(("127.0.0.1", 8043))).run()

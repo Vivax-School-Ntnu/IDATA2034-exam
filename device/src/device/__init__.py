@@ -1,7 +1,8 @@
-"""A IoT device on the network,, provide actuoators and sensors."""
+"""A IoT device on the network providing actuators and sensors."""
 
 from pathlib import Path
 
+from device.actuator import BinaryActuator, NumericActuator
 from device.client import DeviceClient
 from device.device import Device
 from device.identity import load_or_create_uuid
@@ -16,6 +17,9 @@ def main() -> None:
 
     device.add_sensor("temperature", NumericSensor("Temperature"))
     device.add_sensor("motion", BinarySensor("Motion"))
+
+    device.add_actuator("lamp", BinaryActuator("Living room light"))
+    device.add_actuator("dimmer", NumericActuator("Living room dimmer", initial_value=50))
 
     client = DeviceClient("127.0.0.1")
 

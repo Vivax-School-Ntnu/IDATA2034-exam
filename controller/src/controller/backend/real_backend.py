@@ -1,5 +1,6 @@
+"""Implementation of Backend against the real server."""
+
 import logging
-import time
 import socket
 from collections.abc import Callable, Sequence
 from typing import override
@@ -8,12 +9,11 @@ from uuid import uuid4
 from pydantic import TypeAdapter
 from shared.base_packet import (
     ActuatorConfiguration,
-    ActuatorType,
     ErrorPacket,
     SensorConfiguration,
-    SensorType,
     SensorValue,
 )
+from shared.connection import Connection
 from shared.controller_protocol import (
     ConnectionConfirmation,
     ControllerConnection,
@@ -26,14 +26,15 @@ from shared.controller_protocol import (
 )
 
 from controller.backend import Actuator, Backend, Device, Sensor
-from shared.connection import Connection
-from shared.device_protocol import SensorUpdate
 
 logger = logging.getLogger(__name__)
 
 
 class RealSensor(Sensor):
+    """A live updating sensor."""
+
     def __init__(self, cap: SensorConfiguration, inital_value: SensorValue) -> None:
+        """Create a new live updating sensor."""
         self.name = cap.name
         self.type_ = cap.sensor_type
         self._value = inital_value
@@ -48,11 +49,14 @@ class RealSensor(Sensor):
         self._on_update = callback
 
     def set_value(self, value: SensorValue) -> None:
+        """Set the current value of the sensor from the server."""
         self._value = value
         self._on_update()
 
 
 class RealActuator(Actuator):
+    """A live updating actuator that lets you also set its state."""
+
     def __init__(
         self,
         connection: Connection,
@@ -60,6 +64,10 @@ class RealActuator(Actuator):
         cap: ActuatorConfiguration,
         inital_value: SensorValue,
     ) -> None:
+        """Create a new actuator.
+
+        It will use the given connection and address to issue value updates to its server mirror.
+        """
         self._connection = connection
         self._address = address
         self.name = cap.name
@@ -76,15 +84,26 @@ class RealActuator(Actuator):
         self._on_update = callback
 
     def set_value(self, value: SensorValue) -> None:
+        """Update the value of this actuator from the server.
+
+        Does *not* send a message to the server, for that use `update_value`
+        """
         self._value = value
         self._on_update()
 
+    @override
     def update_value(self, value: SensorValue) -> None:
         self._connection.send(SetActuator(request_id=None, address=self._address, value=value))
 
 
 class RealDevice(Device):
+    """A device holding sensors and actuators and routing updates to them."""
+
     def __init__(self, connection: Connection, device_info: DeviceInfo) -> None:
+        """Create a real device.
+
+        This will subscribe to all sensors and actuators on the device.
+        """
         self.sensors: dict[str, RealSensor] = {}
         self.actuators: dict[str, RealActuator] = {}
 
@@ -106,6 +125,7 @@ class RealDevice(Device):
         self._connection = connection
 
     def update_value(self, address: str, value: SensorValue) -> None:
+        """Update the value of the sensor/actuator at the given local address."""
         if address in self.sensors:
             self.sensors[address].set_value(value)
         elif address in self.actuators:
@@ -121,7 +141,10 @@ class RealDevice(Device):
 
 
 class RealBackend(Backend):
+    """A backend that connects to the real server and provides live updates."""
+
     def __init__(self, server: tuple[str, int]) -> None:
+        """Create a backend that will connect to the given server."""
         self._server = server
         self._on_error: Callable[[str], None] = lambda _msg: None
         self._on_new_device: Callable[[Device], None] = lambda _device: None

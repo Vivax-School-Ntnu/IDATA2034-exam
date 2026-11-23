@@ -17,8 +17,8 @@ code, discuss improvments, and integrate our work.
 
 | Team member | Main responsibility |
 |---|---|
-| Luca | Server - [Fill in] |
-| Ole | Controller - [Fill in] |
+| Luca | Server - Protocol, addressing, id allocation, broadcasting.  |
+| Ole | Controller and shared-framing - TUI, User interaction, project setup, protcol framing. |
 | Vetle | Device - sensors, actuators, TCP client and runtime |
 
 ---

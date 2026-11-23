@@ -28,6 +28,7 @@
             nixpkgs-master.legacyPackages.${system}.uv
             pkgs.ruff
             pkgs.basedpyright
+            pkgs.docker-compose
           ];
 
           env = {

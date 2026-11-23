@@ -1,5 +1,6 @@
-"""A IoT device on the network providing actuators and sensors."""
+"""A simulated IoT device providing actuators and sensors."""
 
+import argparse
 from pathlib import Path
 
 from device.actuator import BinaryActuator, NumericActuator
@@ -11,23 +12,42 @@ from device.sensor import BinarySensor, NumericSensor
 
 
 def main() -> None:
-    """Start the device."""
-    device_uuid = load_or_create_uuid(Path("data/device_uuid.txt"))
+    """Start a simulated device using the selected configuration."""
+    parser = argparse.ArgumentParser(description="Start a simulated IoT device.")
+    parser.add_argument(
+        "--config",
+        choices=["living-room", "bathroom"],
+        default="living-room",
+        help="Select the device configuration",
+    )
+    args = parser.parse_args()
+
+    if args.config == "living-room":
+        uuid_path = Path("data/device_uuid.txt")
+        device_name = "Living room"
+    else:
+        uuid_path = Path("data/bathroom_uuid.txt")
+        device_name = "Bathroom"
+
+    device_uuid = load_or_create_uuid(uuid_path)
     device = Device(device_uuid)
 
-    device.add_sensor("temperature", NumericSensor("Temperature"))
-    device.add_sensor("motion", BinarySensor("Motion"))
-
-    device.add_actuator("lamp", BinaryActuator("Living room light"))
-    device.add_actuator("dimmer", NumericActuator("Living room dimmer", initial_value=50))
+    if args.config == "living-room":
+        device.add_sensor("temperature", NumericSensor("Temperature"))
+        device.add_sensor("motion", BinarySensor("Motion"))
+        device.add_actuator("lamp", BinaryActuator("Living room light"))
+        device.add_actuator("dimmer", NumericActuator("Living room dimmer", initial_value=50))
+    else:
+        device.add_sensor("temperature", NumericSensor("Bathroom temperature"))
+        device.add_actuator("lamp", BinaryActuator("Bathroom light"))
 
     client = DeviceClient("127.0.0.1")
 
     runtime = DeviceRuntime(
         device=device,
         client=client,
-        name="Living room",
-        update_interval=2.0,
+        name=device_name,
+        update_interval=3.0,
     )
 
     try:

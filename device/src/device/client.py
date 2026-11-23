@@ -12,6 +12,7 @@ from shared.device_protocol import (
     DeviceConnection,
     SensorUpdate,
     ServerToDevicePacket,
+    UpdateActuator,
 )
 
 from device.device import Device
@@ -28,6 +29,7 @@ class DeviceClient:
         self.host = host
         self.port = port
         self._connection: Connection | None = None
+        self._device: Device | None = None
 
         self._registered = Event()
         self.device_id: int | None = None
@@ -51,6 +53,7 @@ class DeviceClient:
         connection.register(ErrorPacket, self._handle_error)
         connection.register(DisconnectPacket, self._handle_disconnect)
         connection.register(DeviceConnected, self._handle_device_connected)
+        connection.register(UpdateActuator, self._handle_update_actuator)
 
         self._connection = connection
         connection.start()
@@ -59,6 +62,8 @@ class DeviceClient:
         """Register the device with the server."""
         if self._connection is None:
             raise RuntimeError("Client is not connected")
+
+        self._device = device
 
         packet = DeviceConnection(
             type="connect_device",
@@ -78,7 +83,10 @@ class DeviceClient:
         packet = SensorUpdate(
             type="sensor_update",
             request_id=None,
-            sensors=device.get_sensor_values(),
+            sensors={
+                **device.get_sensor_values(),
+                **device.get_actuator_values(),
+            },
         )
 
         self._connection.send(packet)
@@ -87,6 +95,17 @@ class DeviceClient:
         """Handle successful device registration."""
         self.device_id = packet.device_id
         self._registered.set()
+
+    def _handle_update_actuator(self, packet: UpdateActuator):
+        """Update an actuator when requested by the server."""
+        if self._device is None:
+            logger.warning("Received actuator update without a device")
+            return
+
+        try:
+            self._device.set_actuator_value(packet.actuator, packet.value)
+        except (ValueError, TypeError) as error:
+            logger.warning("Failed to update actuator: %s", error)
 
     def wait_for_registration(self, timeout: float = 5.0) -> bool:
         """Wait for the server to confirm device registration."""
@@ -105,6 +124,7 @@ class DeviceClient:
         self._connection = None
         self._registered.clear()
         self.device_id = None
+        self._device = None
 
     def close(self) -> None:
         """Close the connection and stop its reader thread."""
@@ -113,6 +133,7 @@ class DeviceClient:
         self._connection = None
         self._registered.clear()
         self.device_id = None
+        self._device = None
 
         if connection is not None:
             connection.close()

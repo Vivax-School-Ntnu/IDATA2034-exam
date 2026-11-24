@@ -16,13 +16,15 @@ allowing team members to work independently without directly affecting the main 
 
 Once changes were ready, Pull Requests were created for review. These had to be approved by
 another team member before being merged into the main branch. This helped us review each other's
-code, discuss improvements, and integrate our work.
+code, discuss improvements, and integrate our work. In addition, the PRs were checked by our 
+countinious integration pipeline in GitHub actions. For a pr to be accepted it had to pass ruff 
+(linting), basedpyright(static type checkign) and pytest(test suite).
 
 ### Team responsibilities
 
 | Team member | Main responsibility |
 |---|---|
-| Luca | Server - Protocol, addressing, id allocation, broadcasting.  |
+| Luka | Server - Protocol, addressing, id allocation, broadcasting.  |
 | Ole | Controller and shared-framing - TUI, User interaction, project setup, protocol framing. |
 | Vetle | Device - sensors, actuators, TCP client and runtime |
 
@@ -42,7 +44,8 @@ Getting started with the project by establishing the initial communication proto
 
 ### Work completed
 
-**Server - Luca**
+**Server - Luka**
+- Discussed the protocol spec in person with Ole while it was being written.
 - Reviewed and approved the device-to-server protocol spec.
 - PRs reviewed: [#2]
 
@@ -59,7 +62,7 @@ Getting started with the project by establishing the initial communication proto
 - PRs reviewed: [#2], [#5]
 
 ### Retrospective
-- **What went well**: We established the initial communication protocol specification, set up the python development environment and CI pipeline, and organized the first tasks using GitHub issues
+- **What went well**: We established the initial communication protocol specification, set up the python development environment and CI pipeline, and organized the first tasks using GitHub issues. Discussing the protocol design in person helped us agree on the basics of the protocol quickly.
 - **What could be improved**: We could have defined clearer priorities and smaller milestones to help us begin implementation earlier.
 ---
 
@@ -74,7 +77,7 @@ Developing the shared communication protocol infrastructure, starting the sensor
 
 ### Work completed
 
-**Server - Luca**
+**Server - Luka**
 - Reviewed and approved the shared protocol infrastructure.
 - Assigned to the server core ([#11]).
 - PRs reviewed: [#8]
@@ -112,10 +115,15 @@ Implementing the server, completing the sensor implementation, and further devel
 
 ### Work completed
 
-**Server - Luca**
-- Implemented the server core: listens on port 8043, uses one thread per client, assigns unique
-  client ids and runs a read loop for each connection.
-- Assigned to the controller part of the protocol ([#15]).
+**Server - Luka**
+- Implemented the server core: listens on port 8043, accepts clients in a loop, gives each
+  client its own thread and a unique client id, and runs a read loop per connection.
+- Added message dispatch: incoming packets are routed to handlers by type, malformed or
+  unknown packets get an error reply, and a failing handler returns an error instead of
+  dropping the connection.
+- Added disconnect handling, safe sending to other clients, a stoppable accept loop, and
+  tests for the server core.
+- Started work on stable device ids based on a device UUID (merged in Sprint 4).
 - Issues: [#11]. PRs: [#13], reviewed [#12] and [#18]
 
 **Controller - Ole**
@@ -156,16 +164,17 @@ Finish the project. Implement all remaining device functionality, expanding the 
 
 ### Work completed
 
-**Server - Luca**
+**Server - Luka**
 - Made `connect_device` require a UUID, which the server maps to a device id so that a device
   keeps its id when it reconnects. Updated the protocol documentation accordingly.
 - Persisted the UUID-to-device-id mappings to a JSON file so they survive server restarts.
 - Fixed flaky server tests that checked the client count before the server thread had
   registered the client.
-- Designed and documented the controller protocol, including the device-side packets needed for
-  actuators and an acknowledgement for device registration.
-- Implemented server-side handling of the controller protocol.
-- Issues: [#14], [#15], [#25]. PRs: [#21], [#23], [#26], [#28], [#32]
+- Took on the controller part of the protocol: designed and documented it, including the
+  device-side packets needed for actuators and an acknowledgement for device registration.
+- Implemented server-side handling of the controller protocol: device lists, subscriptions,
+  actuator commands, role checks and disconnect handling, with a test suite covering the full flow.
+- Issues: [#14], [#15], [#25]. PRs: [#21], [#23], [#26], [#28], [#32], reviewed [#29] and [#34]
 
 **Controller - Ole**
 - Implemented a read-only controller TUI that shows live updates from a mock backend.

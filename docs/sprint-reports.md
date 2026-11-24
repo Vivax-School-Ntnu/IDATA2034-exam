@@ -1,3 +1,8 @@
+### Documentation note:
+These reports were reconstructed retrospectively using GitHub Issues, Pull requests, commit history,
+and the team's recollections. They describe actual progress rather than claiming that formal
+sprint reviews took place.
+
 # Sprint Reports - IDATA2304 IoT Project
 ## Project organization
 The project was divided into three main components: Device, Server, and Controller.
@@ -25,10 +30,10 @@ code, discuss improvements, and integrate our work.
 
 ## Sprint 1 - 21 September to 5 October
 
-### Sprint Goal
-[Describe main objective of this period]
+### Main Focus
+Getting started with the project by establishing the initial communication protocol specification and setting up development environment.
 
-### Planned issues
+### Issues associated with this period
 - [#1] - Write protocol spec
 - [#3] - Setup Python workspace and CI
 - [#4] - Write README
@@ -53,21 +58,17 @@ code, discuss improvements, and integrate our work.
 - Assigned to sensors ([#6]) and actuators ([#7]).
 - PRs reviewed: [#2], [#5]
 
-### Challenges
-[What problems did we encounter?]
-
 ### Retrospective
-- **What went well**:
-- **What could be improved**:
-- **Actions for the next sprint**:
+- **What went well**: We established the initial communication protocol specification, set up the python development environment and CI pipeline, and organized the first tasks using GitHub issues
+- **What could be improved**: We could have defined clearer priorities and smaller milestones to help us begin implementation earlier.
 ---
 
 ## Sprint 2 - 6 October to 1 November
 
-### Sprint Goal
-[Describe main objective of this period]
+### Main Focus
+Developing the shared communication protocol infrastructure, starting the sensor implementation and preparing for the server core development. 
 
-### Planned issues
+### Issues associated with this period
 - [#6] - Sensors
 - [#11] - Server Core
 
@@ -90,21 +91,17 @@ code, discuss improvements, and integrate our work.
   unit tests for names, types and generated values.
 - Issues: [#6]. PRs: [#10] (opened), reviewed [#9]
 
-### Challenges
-[What problems did we encounter?]
-
 ### Retrospective
-- **What went well**:
-- **What could be improved**:
-- **Actions for the next sprint**:
+- **What went well**: The initial shared protocol infrastructure was implemented, including JSON packet definitions, message framing, and tests. Work on the sensor implementation also began.
+- **What could be improved**: Considering the length of this period, we could have dedicated more time to development and made further progress on the individual components.
 ---
 
 ## Sprint 3 - 2 November to 19 November
 
-### Sprint Goal
-[Describe main objective of this period]
+### Main Focus
+Implementing the server, completing the sensor implementation, and further developing the shared communication infrastructure.
 
-### Planned issues
+### Issues associated with this period
 - [#4] - Write README
 - [#6] - Sensors
 - [#11] - Server Core
@@ -135,21 +132,17 @@ code, discuss improvements, and integrate our work.
 - Opened the Device class PR.
 - Issues: [#6], [#17]. PRs: [#10], [#20] (opened)
 
-### Challenges
-[What problems did we encounter?]
-
 ### Retrospective
-- **What went well**:
-- **What could be improved**:
-- **Actions for the next sprint**:
+- **What went well**: The initial server core was implemented, the sensor implementation was completed, and the shared connection handling was improved.
+- **What could be improved**: We could have integrated the different components earlier, giving us more time to test the complete system before the deadline.
 ---
 
 ## Sprint 4 - 20 November to 23 November
 
-### Sprint Goal
-[Describe main objective of this period]
+### Main Focus
+Finish the project. Implement all remaining device functionality, expanding the controller and server communication, and integrating the different components of the system.
 
-### Planned issues
+### Issues associated with this period
 - [#7] - Implement Actuators
 - [#14] - Should device ids be random
 - [#15] - Create and document controller part of protocol
@@ -189,27 +182,27 @@ code, discuss improvements, and integrate our work.
   `DeviceConnected` acknowledgement.
 - Added actuator support: an abstract actuator class, binary and numeric actuators, handling of
   actuator updates over TCP, and unit and TCP integration tests.
-- Started the device runtime, which sends sensor updates automatically and stores a persistent
+- Implemented the device runtime, which sends sensor updates automatically and stores a persistent
   UUID.
 - Created the sprint report template.
-- Issues: [#17], [#22], [#30]. PRs: [#20], [#29], [#36], [#31] (open), [#37] (open)
+- Issues: [#17], [#22], [#30]. PRs: [#20], [#29], [#36], [#31], [#37]
 
-### Challenges
-[What problems did we encounter?]
+**Final status:** All remaining pull requests were subsequently merged, and the implementation was completed before submission.
 
 ### Retrospective
-- **What went well**:
-- **What could be improved**:
-- **Actions for the next sprint**:
+- **What went well**: Significant progress was made across all components. The server gained support for controller communication and persistent device IDs. The controller interface was developed to display sensor readings and control actuators. On the device side, the TCP client, actuator support, and runtime were implemented.
+- **What could be improved**: A more evenly distributed workload throughout the semester would have given us more time for integration testing, debugging, and final documentation.
 ---
 
 ## Overall Reflection
-[Briefly explain how the project progressed, how the team collaborated, and what could have been organized differently]
+Throughout the project, we worked on three main components: Device, Server, and Controller, with each team member having primary responsibility for one component. We used GitHub issues, branches, pull requests, and code reviews to organize our work and collaborate.
 
-### Documentation note:
-These reports were reconstructed retrospectively using GitHub Issues, Pull requests, commit history,
-and the team's recollections. They describe actual progress rather than claiming that formal
-sprint reviews took place.
+One thing we could have improved was distributing the workload more evenly throughout the semester. A significant amount of development happened towards the end, which left less time for integration testing, debugging, and documentation.
+
+We could also have benefited from clearer milestones and more consistent progress tracking over the course of the project
+
+Overall we successfully implemented the system and gained practical experience with network programming, TCP communication, and integrating independently developed components.
+
 
 [#1]: https://github.com/Vivax-School-Ntnu/IDATA2034-exam/issues/1
 [#2]: https://github.com/Vivax-School-Ntnu/IDATA2034-exam/pull/2
